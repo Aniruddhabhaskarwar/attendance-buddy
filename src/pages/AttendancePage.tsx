@@ -10,20 +10,19 @@ import { Check, X } from 'lucide-react';
 const AttendancePage: React.FC = () => {
   const { classes, batches, getStudentsByBatch, saveAttendance, attendance } = useData();
   const [selectedClass, setSelectedClass] = useState('');
-  const [selectedBatch, setSelectedBatch] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [statuses, setStatuses] = useState<Record<string, AttendanceStatus>>({});
   const [saving, setSaving] = useState(false);
 
-  const filteredBatches = useMemo(
-    () => batches.filter(b => b.class_id === selectedClass && b.active),
+  // Auto-select the single Morning batch for the selected class
+  const selectedBatch = useMemo(
+    () => batches.find(b => b.class_id === selectedClass && b.active)?.id || '',
     [batches, selectedClass]
   );
 
   const students = useMemo(() => {
     if (!selectedBatch) return [];
     const list = getStudentsByBatch(selectedBatch);
-    // Initialize statuses - default to P, or use existing attendance
     const initial: Record<string, AttendanceStatus> = {};
     list.forEach(s => {
       const existing = attendance.find(a => a.student_id === s.id && a.attendance_date === date);
@@ -35,13 +34,6 @@ const AttendancePage: React.FC = () => {
     return list;
   }, [selectedBatch, getStudentsByBatch, attendance, date]);
 
-  const toggleStatus = (studentId: string) => {
-    setStatuses(prev => ({
-      ...prev,
-      [studentId]: prev[studentId] === 'P' ? 'A' : 'P',
-    }));
-  };
-
   const handleSave = () => {
     setSaving(true);
     const records = students.map(s => ({
@@ -51,7 +43,6 @@ const AttendancePage: React.FC = () => {
     }));
     saveAttendance(records);
     setSaving(false);
-
     const present = records.filter(r => r.status === 'P').length;
     const absent = records.filter(r => r.status === 'A').length;
     toast.success(`Attendance saved! ${present}P / ${absent}A`);
@@ -59,12 +50,6 @@ const AttendancePage: React.FC = () => {
 
   const handleClassChange = (val: string) => {
     setSelectedClass(val);
-    setSelectedBatch('');
-    setStatuses({});
-  };
-
-  const handleBatchChange = (val: string) => {
-    setSelectedBatch(val);
     setStatuses({});
   };
 
@@ -75,8 +60,7 @@ const AttendancePage: React.FC = () => {
     <AppLayout>
       <h1 className="text-xl font-bold mb-4">Mark Attendance</h1>
 
-      {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
         <Select value={selectedClass} onValueChange={handleClassChange}>
           <SelectTrigger className="h-12">
             <SelectValue placeholder="Select Class" />
@@ -84,17 +68,6 @@ const AttendancePage: React.FC = () => {
           <SelectContent>
             {classes.map(c => (
               <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={selectedBatch} onValueChange={handleBatchChange} disabled={!selectedClass}>
-          <SelectTrigger className="h-12">
-            <SelectValue placeholder="Select Batch" />
-          </SelectTrigger>
-          <SelectContent>
-            {filteredBatches.map(b => (
-              <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -107,7 +80,6 @@ const AttendancePage: React.FC = () => {
         />
       </div>
 
-      {/* Summary bar */}
       {students.length > 0 && (
         <div className="flex items-center gap-4 text-sm mb-3 px-1">
           <span className="text-muted-foreground">{students.length} students</span>
@@ -116,7 +88,6 @@ const AttendancePage: React.FC = () => {
         </div>
       )}
 
-      {/* Student list */}
       <div className="space-y-2 pb-24">
         {students.map(student => {
           const status = statuses[student.id] || 'P';
@@ -159,7 +130,6 @@ const AttendancePage: React.FC = () => {
         })}
       </div>
 
-      {/* Sticky save */}
       {students.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-card/95 backdrop-blur border-t border-border md:left-56">
           <div className="container max-w-5xl">
