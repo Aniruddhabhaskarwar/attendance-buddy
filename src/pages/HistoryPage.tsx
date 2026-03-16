@@ -4,15 +4,9 @@ import { useData } from '@/contexts/DataContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const HistoryPage: React.FC = () => {
-  const { classes, batches, students, attendance } = useData();
+  const { classes, students, attendance } = useData();
   const [filterClass, setFilterClass] = useState('all');
-  const [filterBatch, setFilterBatch] = useState('all');
   const [filterDate, setFilterDate] = useState('');
-
-  const filteredBatches = useMemo(
-    () => filterClass !== 'all' ? batches.filter(b => b.class_id === filterClass) : batches,
-    [batches, filterClass]
-  );
 
   const records = useMemo(() => {
     return attendance
@@ -21,7 +15,6 @@ const HistoryPage: React.FC = () => {
         const student = students.find(s => s.id === a.student_id);
         if (!student) return false;
         if (filterClass !== 'all' && student.class_id !== filterClass) return false;
-        if (filterBatch !== 'all' && student.batch_id !== filterBatch) return false;
         return true;
       })
       .map(a => ({
@@ -29,9 +22,8 @@ const HistoryPage: React.FC = () => {
         student: students.find(s => s.id === a.student_id)!,
       }))
       .sort((a, b) => b.attendance_date.localeCompare(a.attendance_date));
-  }, [attendance, students, filterClass, filterBatch, filterDate]);
+  }, [attendance, students, filterClass, filterDate]);
 
-  // Group by date
   const grouped = useMemo(() => {
     const map = new Map<string, typeof records>();
     records.forEach(r => {
@@ -46,19 +38,12 @@ const HistoryPage: React.FC = () => {
     <AppLayout>
       <h1 className="text-xl font-bold mb-4">Attendance History</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-        <Select value={filterClass} onValueChange={v => { setFilterClass(v); setFilterBatch('all'); }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        <Select value={filterClass} onValueChange={setFilterClass}>
           <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Classes</SelectItem>
             {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filterBatch} onValueChange={setFilterBatch}>
-          <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Batches</SelectItem>
-            {filteredBatches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
           </SelectContent>
         </Select>
         <input

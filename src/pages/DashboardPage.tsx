@@ -5,17 +5,16 @@ import { AppLayout } from '@/components/AppLayout';
 import { Users, BookOpen, ClipboardCheck, UserX } from 'lucide-react';
 
 const DashboardPage: React.FC = () => {
-  const { students, batches, attendance } = useData();
+  const { students, classes, attendance } = useData();
   const today = new Date().toISOString().split('T')[0];
 
   const activeStudents = students.filter(s => s.active).length;
-  const activeBatches = batches.filter(b => b.active).length;
   const todayAttendance = attendance.filter(a => a.attendance_date === today);
   const todayAbsent = todayAttendance.filter(a => a.status === 'A').length;
 
   const stats = [
     { label: 'Total Students', value: activeStudents, icon: Users, color: 'text-primary' },
-    { label: 'Active Batches', value: activeBatches, icon: BookOpen, color: 'text-foreground' },
+    { label: 'Classes', value: classes.length, icon: BookOpen, color: 'text-foreground' },
     { label: 'Marked Today', value: todayAttendance.length, icon: ClipboardCheck, color: 'text-success' },
     { label: 'Absent Today', value: todayAbsent, icon: UserX, color: 'text-destructive' },
   ];
@@ -23,7 +22,7 @@ const DashboardPage: React.FC = () => {
   const quickActions = [
     { label: 'Mark Attendance', to: '/attendance', icon: ClipboardCheck },
     { label: 'Manage Students', to: '/students', icon: Users },
-    { label: 'Classes & Batches', to: '/classes', icon: BookOpen },
+    { label: 'Classes', to: '/classes', icon: BookOpen },
   ];
 
   return (
