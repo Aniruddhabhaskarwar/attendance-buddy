@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { Plus, Upload, Link as LinkIcon, Mic, MicOff } from 'lucide-react';
 
 const StudentsPage: React.FC = () => {
-  const { students, classes, batches, addStudent, updateStudent, importStudentsCSV } = useData();
+  const { students, classes, batches, addStudent, updateStudent, importStudentsCSV, classTokens } = useData();
   const [filterClass, setFilterClass] = useState('all');
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -31,7 +31,6 @@ const StudentsPage: React.FC = () => {
     });
   }, [students, filterClass, search]);
 
-  // Get batch_id for selected class (always Morning)
   const getBatchId = (classId: string) => batches.find(b => b.class_id === classId)?.id || '';
 
   const handleAdd = () => {
@@ -40,9 +39,7 @@ const StudentsPage: React.FC = () => {
       return;
     }
     addStudent({
-      ...form,
-      batch_id: getBatchId(form.class_id),
-      active: true,
+      ...form, batch_id: getBatchId(form.class_id), active: true,
       secondary_parent_whatsapp: form.secondary_parent_whatsapp || null,
     });
     setForm({ full_name: '', roll_number: '', class_id: '', parent_name: '', parent_whatsapp: '', secondary_parent_whatsapp: '' });
@@ -72,44 +69,29 @@ const StudentsPage: React.FC = () => {
     e.target.value = '';
   };
 
-  const copyParentLink = (token: string) => {
+  const copyClassLink = (classId: string) => {
+    const token = classTokens[classId];
+    if (!token) { toast.error('No link for this class'); return; }
     const url = `${window.location.origin}/parent/${token}`;
     navigator.clipboard.writeText(url);
-    toast.success('Parent link copied!');
+    toast.success('Class attendance link copied!');
   };
 
-  // Voice input using Web Speech API
   const toggleVoiceInput = useCallback(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.error('Voice input not supported in this browser');
-      return;
-    }
-
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      return;
-    }
-
+    if (!SpeechRecognition) { toast.error('Voice input not supported'); return; }
+    if (isListening) { recognitionRef.current?.stop(); setIsListening(false); return; }
     const recognition = new SpeechRecognition();
     recognition.lang = 'en-IN';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
-
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       setForm(f => ({ ...f, full_name: f.full_name ? f.full_name + ' ' + transcript : transcript }));
       toast.success(`Heard: "${transcript}"`);
     };
-
-    recognition.onerror = () => {
-      setIsListening(false);
-      toast.error('Voice input failed, please try again');
-    };
-
+    recognition.onerror = () => { setIsListening(false); toast.error('Voice input failed'); };
     recognition.onend = () => setIsListening(false);
-
     recognitionRef.current = recognition;
     recognition.start();
     setIsListening(true);
@@ -134,19 +116,8 @@ const StudentsPage: React.FC = () => {
                 <div>
                   <Label>Full Name *</Label>
                   <div className="flex gap-2">
-                    <Input
-                      value={form.full_name}
-                      onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
-                      placeholder="Type or use mic"
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant={isListening ? 'destructive' : 'outline'}
-                      size="icon"
-                      onClick={toggleVoiceInput}
-                      title="Voice input"
-                    >
+                    <Input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} placeholder="Type or use mic" className="flex-1" />
+                    <Button type="button" variant={isListening ? 'destructive' : 'outline'} size="icon" onClick={toggleVoiceInput}>
                       {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                     </Button>
                   </div>
@@ -168,7 +139,6 @@ const StudentsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
         <Input placeholder="Search name or roll..." value={search} onChange={e => setSearch(e.target.value)} className="h-10" />
         <Select value={filterClass} onValueChange={setFilterClass}>
@@ -180,7 +150,15 @@ const StudentsPage: React.FC = () => {
         </Select>
       </div>
 
-      {/* Student list */}
+      {/* Class links */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {classes.map(c => (
+          <Button key={c.id} variant="outline" size="sm" onClick={() => copyClassLink(c.id)}>
+            <LinkIcon className="h-3 w-3 mr-1" /> {c.name} Link
+          </Button>
+        ))}
+      </div>
+
       <div className="space-y-2">
         {filtered.map(student => {
           const cls = classes.find(c => c.id === student.class_id);
@@ -189,40 +167,17 @@ const StudentsPage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-sm">{student.full_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Roll #{student.roll_number} · {cls?.name}
-                  </p>
-                  {student.parent_name && (
-                    <p className="text-xs text-muted-foreground mt-1">Parent: {student.parent_name}</p>
-                  )}
+                  <p className="text-xs text-muted-foreground">Roll #{student.roll_number} · {cls?.name}</p>
+                  {student.parent_name && <p className="text-xs text-muted-foreground mt-1">Parent: {student.parent_name}</p>}
                 </div>
-                <div className="flex gap-1 ml-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => copyParentLink(student.parent_access_token)}
-                    title="Copy parent link"
-                  >
-                    <LinkIcon className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      updateStudent(student.id, { active: !student.active });
-                      toast.success(student.active ? 'Student deactivated' : 'Student activated');
-                    }}
-                  >
-                    {student.active ? 'Deactivate' : 'Activate'}
-                  </Button>
-                </div>
+                <Button variant="ghost" size="sm" onClick={() => { updateStudent(student.id, { active: !student.active }); toast.success(student.active ? 'Deactivated' : 'Activated'); }}>
+                  {student.active ? 'Deactivate' : 'Activate'}
+                </Button>
               </div>
             </div>
           );
         })}
-        {filtered.length === 0 && (
-          <p className="text-center text-muted-foreground py-8">No students found</p>
-        )}
+        {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">No students found</p>}
       </div>
     </AppLayout>
   );

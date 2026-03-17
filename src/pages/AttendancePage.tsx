@@ -5,16 +5,15 @@ import { AttendanceStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Check, X } from 'lucide-react';
+import { Check, X, IndianRupee } from 'lucide-react';
 
 const AttendancePage: React.FC = () => {
-  const { classes, batches, getStudentsByBatch, saveAttendance, attendance } = useData();
+  const { classes, batches, getStudentsByBatch, saveAttendance, attendance, getFeesByStudent } = useData();
   const [selectedClass, setSelectedClass] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [statuses, setStatuses] = useState<Record<string, AttendanceStatus>>({});
   const [saving, setSaving] = useState(false);
 
-  // Auto-select the single Morning batch for the selected class
   const selectedBatch = useMemo(
     () => batches.find(b => b.class_id === selectedClass && b.active)?.id || '',
     [batches, selectedClass]
@@ -36,11 +35,7 @@ const AttendancePage: React.FC = () => {
 
   const handleSave = () => {
     setSaving(true);
-    const records = students.map(s => ({
-      studentId: s.id,
-      status: statuses[s.id] || 'P',
-      date,
-    }));
+    const records = students.map(s => ({ studentId: s.id, status: statuses[s.id] || 'P', date }));
     saveAttendance(records);
     setSaving(false);
     const present = records.filter(r => r.status === 'P').length;
@@ -55,6 +50,13 @@ const AttendancePage: React.FC = () => {
 
   const presentCount = Object.values(statuses).filter(s => s === 'P').length;
   const absentCount = Object.values(statuses).filter(s => s === 'A').length;
+
+  const getStudentFeeStatus = (studentId: string) => {
+    const studentFees = getFeesByStudent(studentId);
+    if (studentFees.length === 0) return null;
+    const latest = studentFees.sort((a, b) => b.due_date.localeCompare(a.due_date))[0];
+    return latest;
+  };
 
   return (
     <AppLayout>
@@ -92,6 +94,10 @@ const AttendancePage: React.FC = () => {
         {students.map(student => {
           const status = statuses[student.id] || 'P';
           const isAbsent = status === 'A';
+          const fee = getStudentFeeStatus(student.id);
+          const feeUnpaid = fee && fee.status === 'unpaid';
+          const feeDue = fee ? fee.total_amount - fee.paid_amount : 0;
+
           return (
             <div
               key={student.id}
@@ -102,6 +108,15 @@ const AttendancePage: React.FC = () => {
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-sm truncate">{student.full_name}</p>
                 <p className="text-xs text-muted-foreground">Roll #{student.roll_number}</p>
+                {fee && (
+                  <div className={`flex items-center gap-1 mt-1 text-xs font-medium ${feeUnpaid ? 'text-destructive' : 'text-success'}`}>
+                    <IndianRupee className="h-3 w-3" />
+                    {feeUnpaid
+                      ? `₹${feeDue} due`
+                      : 'Fee Paid'
+                    }
+                  </div>
+                )}
               </div>
               <div className="flex gap-2 ml-3">
                 <button

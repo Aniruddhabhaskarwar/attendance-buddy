@@ -10,6 +10,7 @@ import AttendancePage from "./pages/AttendancePage";
 import StudentsPage from "./pages/StudentsPage";
 import ClassesPage from "./pages/ClassesPage";
 import HistoryPage from "./pages/HistoryPage";
+import FeesPage from "./pages/FeesPage";
 import ParentViewPage from "./pages/ParentViewPage";
 import NotFound from "./pages/NotFound";
 
@@ -32,6 +33,7 @@ const AppRoutes = () => {
       <Route path="/students" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />
       <Route path="/classes" element={<ProtectedRoute><ClassesPage /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
+      <Route path="/fees" element={<ProtectedRoute><FeesPage /></ProtectedRoute>} />
       <Route path="/parent/:token" element={<ParentViewPage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
