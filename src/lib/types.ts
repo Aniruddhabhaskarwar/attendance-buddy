@@ -1,5 +1,6 @@
 export type UserRole = 'admin' | 'teacher';
 export type AttendanceStatus = 'P' | 'A';
+export type FeeStatus = 'paid' | 'unpaid';
 
 export interface AppUser {
   id: string;
@@ -35,6 +36,19 @@ export interface Student {
   secondary_parent_whatsapp: string | null;
   active: boolean;
   parent_access_token: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FeeRecord {
+  id: string;
+  student_id: string;
+  total_amount: number;
+  paid_amount: number;
+  due_date: string;
+  status: FeeStatus;
+  payment_date: string | null;
+  notes: string;
   created_at: string;
   updated_at: string;
 }

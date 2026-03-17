@@ -1,12 +1,4 @@
-import { ClassItem, Batch, Student, AttendanceRecord, AppUser } from './types';
-
-export const mockUser: AppUser = {
-  id: 'user-1',
-  full_name: 'Admin User',
-  email: 'admin@bhaskarwar.com',
-  role: 'admin',
-  created_at: new Date().toISOString(),
-};
+import { ClassItem, Batch, Student, AttendanceRecord, FeeRecord } from './types';
 
 export const mockClasses: ClassItem[] = [
   { id: 'class-8', name: 'Class 8', created_at: new Date().toISOString() },
@@ -19,6 +11,13 @@ export const mockBatches: Batch[] = [
   { id: 'batch-9', class_id: 'class-9', name: 'Morning', teacher_id: null, active: true, created_at: new Date().toISOString() },
   { id: 'batch-10', class_id: 'class-10', name: 'Morning', teacher_id: null, active: true, created_at: new Date().toISOString() },
 ];
+
+// Class-level tokens for parent links
+export const classTokens: Record<string, string> = {
+  'class-8': 'c8token2024bhaskarwar',
+  'class-9': 'c9token2024bhaskarwar',
+  'class-10': 'c10token2024bhaskarwar',
+};
 
 const generateToken = () => crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '');
 
@@ -39,4 +38,13 @@ export const mockAttendance: AttendanceRecord[] = [
   { id: 'a2', student_id: 's2', attendance_date: yesterday, status: 'P', marked_by_user_id: 'user-1', created_at: yesterday, updated_at: yesterday },
   { id: 'a3', student_id: 's3', attendance_date: yesterday, status: 'A', marked_by_user_id: 'user-1', created_at: yesterday, updated_at: yesterday },
   { id: 'a4', student_id: 's4', attendance_date: yesterday, status: 'P', marked_by_user_id: 'user-1', created_at: yesterday, updated_at: yesterday },
+];
+
+export const mockFees: FeeRecord[] = [
+  { id: 'f1', student_id: 's1', total_amount: 5000, paid_amount: 5000, due_date: '2026-03-01', status: 'paid', payment_date: '2026-02-28', notes: 'March fee', created_at: today, updated_at: today },
+  { id: 'f2', student_id: 's2', total_amount: 5000, paid_amount: 2000, due_date: '2026-03-01', status: 'unpaid', payment_date: null, notes: 'March fee - partial', created_at: today, updated_at: today },
+  { id: 'f3', student_id: 's3', total_amount: 6000, paid_amount: 6000, due_date: '2026-03-01', status: 'paid', payment_date: '2026-03-01', notes: 'March fee', created_at: today, updated_at: today },
+  { id: 'f4', student_id: 's4', total_amount: 6000, paid_amount: 0, due_date: '2026-03-01', status: 'unpaid', payment_date: null, notes: 'March fee', created_at: today, updated_at: today },
+  { id: 'f5', student_id: 's5', total_amount: 7000, paid_amount: 7000, due_date: '2026-03-01', status: 'paid', payment_date: '2026-02-25', notes: 'March fee', created_at: today, updated_at: today },
+  { id: 'f6', student_id: 's6', total_amount: 7000, paid_amount: 0, due_date: '2026-03-01', status: 'unpaid', payment_date: null, notes: 'March fee', created_at: today, updated_at: today },
 ];
