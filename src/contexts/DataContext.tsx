@@ -10,9 +10,12 @@ interface DataContextType {
   fees: FeeRecord[];
   classTokens: Record<string, string>;
   addClass: (name: string) => void;
+  updateClass: (id: string, name: string) => void;
+  deleteClass: (id: string) => void;
   addBatch: (classId: string, name: string) => void;
   addStudent: (student: Omit<Student, 'id' | 'parent_access_token' | 'created_at' | 'updated_at'>) => void;
   updateStudent: (id: string, updates: Partial<Student>) => void;
+  deleteStudent: (id: string) => void;
   saveAttendance: (records: { studentId: string; status: AttendanceStatus; date: string }[]) => void;
   getStudentsByBatch: (batchId: string) => Student[];
   getStudentsByClass: (classId: string) => Student[];
@@ -45,6 +48,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newBatch: Batch = { id: crypto.randomUUID(), class_id: newClass.id, name: 'Morning', teacher_id: null, active: true, created_at: now };
     setBatches(prev => [...prev, newBatch]);
   }, []);
+  const updateClass = useCallback((id: string, name: string) => {
+    setClasses(prev => prev.map(c => c.id === id ? { ...c, name } : c));
+  }, []);
+
+  const deleteClass = useCallback((id: string) => {
+    setClasses(prev => prev.filter(c => c.id !== id));
+    setBatches(prev => prev.filter(b => b.class_id !== id));
+    setStudents(prev => prev.filter(s => s.class_id !== id));
+  }, []);
+
   const addBatch = useCallback(() => {}, []);
 
   const addStudent = useCallback((student: Omit<Student, 'id' | 'parent_access_token' | 'created_at' | 'updated_at'>) => {
@@ -55,6 +68,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateStudent = useCallback((id: string, updates: Partial<Student>) => {
     setStudents(prev => prev.map(s => s.id === id ? { ...s, ...updates, updated_at: new Date().toISOString() } : s));
   }, []);
+
+  const deleteStudent = useCallback((id: string) => {
+    setStudents(prev => prev.filter(s => s.id !== id));
+    setFees(prev => prev.filter(f => f.student_id !== id));
+    setAttendance(prev => prev.filter(a => a.student_id !== id));
+  }, []);
+
 
   const saveAttendance = useCallback((records: { studentId: string; status: AttendanceStatus; date: string }[]) => {
     setAttendance(prev => {
@@ -118,7 +138,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <DataContext.Provider value={{ classes, batches, students, attendance, fees, classTokens, addClass, addBatch, addStudent, updateStudent, saveAttendance, getStudentsByBatch, getStudentsByClass, getAttendanceByStudent, getStudentByToken, getClassByToken, importStudentsCSV, regenerateParentToken, getFeesByStudent, addFee, updateFee }}>
+    <DataContext.Provider value={{ classes, batches, students, attendance, fees, classTokens, addClass, updateClass, deleteClass, addBatch, addStudent, updateStudent, deleteStudent, saveAttendance, getStudentsByBatch, getStudentsByClass, getAttendanceByStudent, getStudentByToken, getClassByToken, importStudentsCSV, regenerateParentToken, getFeesByStudent, addFee, updateFee }}>
       {children}
     </DataContext.Provider>
   );

@@ -6,12 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Plus, Upload, Link as LinkIcon, Mic, MicOff } from 'lucide-react';
+import { Plus, Upload, Link as LinkIcon, Mic, MicOff, Trash2 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
 const StudentsPage: React.FC = () => {
-  const { students, classes, batches, addStudent, updateStudent, importStudentsCSV, classTokens } = useData();
+  const { students, classes, batches, addStudent, updateStudent, deleteStudent, importStudentsCSV, classTokens } = useData();
   const [searchParams] = useSearchParams();
   const [filterClass, setFilterClass] = useState(searchParams.get('class') || 'all');
   const [search, setSearch] = useState('');
@@ -26,24 +27,19 @@ const StudentsPage: React.FC = () => {
     parent_name: '', parent_whatsapp: '', secondary_parent_whatsapp: '',
   });
 
-  // When editing, populate form
   useEffect(() => {
     if (editStudent) {
       const s = students.find(st => st.id === editStudent);
       if (s) {
         setForm({
-          full_name: s.full_name,
-          roll_number: s.roll_number,
-          class_id: s.class_id,
-          parent_name: s.parent_name,
-          parent_whatsapp: s.parent_whatsapp,
+          full_name: s.full_name, roll_number: s.roll_number, class_id: s.class_id,
+          parent_name: s.parent_name, parent_whatsapp: s.parent_whatsapp,
           secondary_parent_whatsapp: s.secondary_parent_whatsapp || '',
         });
       }
     }
   }, [editStudent, students]);
 
-  // Sync URL param
   useEffect(() => {
     const cls = searchParams.get('class');
     if (cls) setFilterClass(cls);
@@ -60,36 +56,28 @@ const StudentsPage: React.FC = () => {
   const getBatchId = (classId: string) => batches.find(b => b.class_id === classId)?.id || '';
 
   const handleAdd = () => {
-    if (!form.full_name || !form.roll_number || !form.class_id) {
-      toast.error('Please fill required fields');
-      return;
-    }
-    addStudent({
-      ...form, batch_id: getBatchId(form.class_id), active: true,
-      secondary_parent_whatsapp: form.secondary_parent_whatsapp || null,
-    });
+    if (!form.full_name || !form.roll_number || !form.class_id) { toast.error('Please fill required fields'); return; }
+    addStudent({ ...form, batch_id: getBatchId(form.class_id), active: true, secondary_parent_whatsapp: form.secondary_parent_whatsapp || null });
     setForm({ full_name: '', roll_number: '', class_id: '', parent_name: '', parent_whatsapp: '', secondary_parent_whatsapp: '' });
     setDialogOpen(false);
     toast.success('Student added');
   };
 
   const handleEdit = () => {
-    if (!editStudent || !form.full_name || !form.roll_number || !form.class_id) {
-      toast.error('Please fill required fields');
-      return;
-    }
+    if (!editStudent || !form.full_name || !form.roll_number || !form.class_id) { toast.error('Please fill required fields'); return; }
     updateStudent(editStudent, {
-      full_name: form.full_name,
-      roll_number: form.roll_number,
-      class_id: form.class_id,
-      batch_id: getBatchId(form.class_id),
-      parent_name: form.parent_name,
-      parent_whatsapp: form.parent_whatsapp,
-      secondary_parent_whatsapp: form.secondary_parent_whatsapp || null,
+      full_name: form.full_name, roll_number: form.roll_number, class_id: form.class_id,
+      batch_id: getBatchId(form.class_id), parent_name: form.parent_name,
+      parent_whatsapp: form.parent_whatsapp, secondary_parent_whatsapp: form.secondary_parent_whatsapp || null,
     });
     setEditStudent(null);
     setForm({ full_name: '', roll_number: '', class_id: '', parent_name: '', parent_whatsapp: '', secondary_parent_whatsapp: '' });
     toast.success('Student updated');
+  };
+
+  const handleDelete = (id: string) => {
+    deleteStudent(id);
+    toast.success('Student deleted');
   };
 
   const handleCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -210,17 +198,33 @@ const StudentsPage: React.FC = () => {
           return (
             <div key={student.id} className={`rounded-xl border border-border bg-card p-4 ${!student.active ? 'opacity-50' : ''}`}>
               <div className="flex items-center justify-between">
-                <div
-                  className="min-w-0 flex-1 cursor-pointer hover:text-primary transition-colors"
-                  onClick={() => setEditStudent(student.id)}
-                >
+                <div className="min-w-0 flex-1 cursor-pointer hover:text-primary transition-colors" onClick={() => setEditStudent(student.id)}>
                   <p className="font-medium text-sm">{student.full_name}</p>
                   <p className="text-xs text-muted-foreground">Roll #{student.roll_number} · {cls?.name}</p>
                   {student.parent_name && <p className="text-xs text-muted-foreground mt-1">Parent: {student.parent_name}</p>}
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => { updateStudent(student.id, { active: !student.active }); toast.success(student.active ? 'Deactivated' : 'Activated'); }}>
-                  {student.active ? 'Deactivate' : 'Activate'}
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => { updateStudent(student.id, { active: !student.active }); toast.success(student.active ? 'Deactivated' : 'Activated'); }}>
+                    {student.active ? 'Deactivate' : 'Activate'}
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete {student.full_name}?</AlertDialogTitle>
+                        <AlertDialogDescription>This will permanently remove the student and all their attendance and fee records.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(student.id)}>Delete</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </div>
             </div>
           );
@@ -229,7 +233,7 @@ const StudentsPage: React.FC = () => {
       </div>
 
       {/* Edit Student Dialog */}
-      <Dialog open={!!editStudent} onOpenChange={(open) => { if (!open) { setEditStudent(null); setForm({ full_name: '', roll_number: '', class_id: '', parent_name: '', parent_whatsapp: '', secondary_parent_whatsapp: '' }); } }}>
+      <Dialog open={!!editStudent} onOpenChange={open => { if (!open) { setEditStudent(null); setForm({ full_name: '', roll_number: '', class_id: '', parent_name: '', parent_whatsapp: '', secondary_parent_whatsapp: '' }); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Edit Student</DialogTitle></DialogHeader>
           <div className="space-y-3">
