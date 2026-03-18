@@ -18,9 +18,10 @@ const FeesPage: React.FC = () => {
   const [form, setForm] = useState({ total_amount: '', paid_amount: '', due_date: '', notes: '' });
 
   const filtered = useMemo(() => {
+    if (!filterClass) return [];
     return students.filter(s => {
       if (!s.active) return false;
-      if (filterClass !== 'all' && s.class_id !== filterClass) return false;
+      if (s.class_id !== filterClass) return false;
       if (filterStatus !== 'all') {
         const studentFees = getFeesByStudent(s.id);
         const latest = studentFees.sort((a, b) => b.due_date.localeCompare(a.due_date))[0];
