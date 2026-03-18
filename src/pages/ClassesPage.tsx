@@ -1,13 +1,49 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useData } from '@/contexts/DataContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Plus } from 'lucide-react';
+import { toast } from 'sonner';
 
 const ClassesPage: React.FC = () => {
-  const { classes, students } = useData();
+  const { classes, students, addClass } = useData();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [className, setClassName] = useState('');
+
+  const handleAdd = () => {
+    if (!className.trim()) {
+      toast.error('Enter class name');
+      return;
+    }
+    addClass(className.trim());
+    setClassName('');
+    setDialogOpen(false);
+    toast.success('Class added');
+  };
 
   return (
     <AppLayout>
-      <h1 className="text-xl font-bold mb-4">Classes</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-bold">Classes</h1>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Class</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>Add New Class</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label>Class Name *</Label>
+                <Input value={className} onChange={e => setClassName(e.target.value)} placeholder="e.g. Class 11" />
+              </div>
+              <Button onClick={handleAdd} className="w-full">Add Class</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
 
       <div className="space-y-3">
         {classes.map(cls => {
