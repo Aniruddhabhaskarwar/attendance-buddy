@@ -37,7 +37,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const generateToken = () => crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '');
 
-  const addClass = useCallback(() => {}, []);
+  const addClass = useCallback((name: string) => {
+    const now = new Date().toISOString();
+    const newClass: ClassItem = { id: crypto.randomUUID(), name, created_at: now };
+    setClasses(prev => [...prev, newClass]);
+    // Also create a default batch for the new class
+    const newBatch: Batch = { id: crypto.randomUUID(), class_id: newClass.id, name: 'Morning', teacher_id: null, active: true, created_at: now };
+    setBatches(prev => [...prev, newBatch]);
+  }, []);
   const addBatch = useCallback(() => {}, []);
 
   const addStudent = useCallback((student: Omit<Student, 'id' | 'parent_access_token' | 'created_at' | 'updated_at'>) => {
