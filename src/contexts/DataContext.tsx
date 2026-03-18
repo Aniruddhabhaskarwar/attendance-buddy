@@ -48,6 +48,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newBatch: Batch = { id: crypto.randomUUID(), class_id: newClass.id, name: 'Morning', teacher_id: null, active: true, created_at: now };
     setBatches(prev => [...prev, newBatch]);
   }, []);
+  const updateClass = useCallback((id: string, name: string) => {
+    setClasses(prev => prev.map(c => c.id === id ? { ...c, name } : c));
+  }, []);
+
+  const deleteClass = useCallback((id: string) => {
+    setClasses(prev => prev.filter(c => c.id !== id));
+    setBatches(prev => prev.filter(b => b.class_id !== id));
+    setStudents(prev => prev.filter(s => s.class_id !== id));
+  }, []);
+
   const addBatch = useCallback(() => {}, []);
 
   const addStudent = useCallback((student: Omit<Student, 'id' | 'parent_access_token' | 'created_at' | 'updated_at'>) => {
