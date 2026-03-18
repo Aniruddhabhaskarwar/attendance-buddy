@@ -74,7 +74,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setFees(prev => prev.filter(f => f.student_id !== id));
     setAttendance(prev => prev.filter(a => a.student_id !== id));
   }, []);
-  }, []);
+
 
   const saveAttendance = useCallback((records: { studentId: string; status: AttendanceStatus; date: string }[]) => {
     setAttendance(prev => {
