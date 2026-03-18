@@ -11,7 +11,7 @@ import { IndianRupee, Plus } from 'lucide-react';
 
 const FeesPage: React.FC = () => {
   const { classes, students, fees, getFeesByStudent, addFee, updateFee } = useData();
-  const [filterClass, setFilterClass] = useState('all');
+  const [filterClass, setFilterClass] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'paid' | 'unpaid'>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState('');
