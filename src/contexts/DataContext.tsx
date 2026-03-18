@@ -29,8 +29,8 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [classes] = useState<ClassItem[]>(mockClasses);
-  const [batches] = useState<Batch[]>(mockBatches);
+  const [classes, setClasses] = useState<ClassItem[]>(mockClasses);
+  const [batches, setBatches] = useState<Batch[]>(mockBatches);
   const [students, setStudents] = useState<Student[]>(mockStudents);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(mockAttendance);
   const [fees, setFees] = useState<FeeRecord[]>(mockFees);

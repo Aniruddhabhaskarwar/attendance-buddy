@@ -107,21 +107,26 @@ const FeesPage: React.FC = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
         <Select value={filterClass} onValueChange={setFilterClass}>
-          <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-10"><SelectValue placeholder="Select Class" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Classes</SelectItem>
             {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={filterStatus} onValueChange={(v: any) => setFilterStatus(v)}>
-          <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
-            <SelectItem value="unpaid">To Be Paid</SelectItem>
-          </SelectContent>
-        </Select>
+        {filterClass && (
+          <Select value={filterStatus} onValueChange={(v: any) => setFilterStatus(v)}>
+            <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="unpaid">To Be Paid</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </div>
+
+      {!filterClass && (
+        <p className="text-center text-muted-foreground py-8">Select a class to view student fees</p>
+      )}
 
       <div className="space-y-2">
         {filtered.map(student => {
