@@ -1,34 +1,79 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { AppUser } from '@/lib/types';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { supabase } from '@/lib/supabase';
 
-const CREDENTIALS = {
-  admin: { email: 'admin@bhaskarwar.com', password: 'admin123', user: { id: 'user-1', full_name: 'Admin', email: 'admin@bhaskarwar.com', role: 'admin' as const, created_at: new Date().toISOString() } },
-  teacher: { email: 'teacher@bhaskarwar.com', password: 'teacher123', user: { id: 'user-2', full_name: 'Teacher', email: 'teacher@bhaskarwar.com', role: 'teacher' as const, created_at: new Date().toISOString() } },
-};
+type Role = 'admin' | 'teacher';
+
+interface AppUser {
+  id: string;
+  full_name: string;
+  email: string;
+  role: Role;
+  created_at?: string;
+}
 
 interface AuthContextType {
   user: AppUser | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const mapUser = (authUser: any): AppUser => ({
+  id: authUser.id,
+  full_name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'User',
+  email: authUser.email || '',
+  role: (authUser.user_metadata?.role || 'teacher') as Role,
+  created_at: authUser.created_at,
+});
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AppUser | null>(null);
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const match = Object.values(CREDENTIALS).find(c => c.email === email && c.password === password);
-    if (match) {
-      setUser(match.user);
-      return true;
-    }
-    return false;
+  useEffect(() => {
+    const init = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data.user) {
+        setUser(mapUser(data.user));
+      }
+      setIsLoading(false);
+    };
+
+    init();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser(mapUser(session.user));
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
-  const logout = useCallback(() => setUser(null), []);
+  const login = useCallback(async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error || !data.user) {
+      return false;
+    }
+
+    setUser(mapUser(data.user));
+    return true;
+  }, []);
+
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, isLoading, login, logout }}>
@@ -38,7 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  return context;
 };

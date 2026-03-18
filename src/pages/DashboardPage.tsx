@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '@/contexts/DataContext';
 import { AppLayout } from '@/components/AppLayout';
 import { Users, BookOpen, ClipboardCheck, UserX } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 const DashboardPage: React.FC = () => {
+  
+  console.log("DashboardPage loaded");
   const { students, classes, attendance } = useData();
   const today = new Date().toISOString().split('T')[0];
 

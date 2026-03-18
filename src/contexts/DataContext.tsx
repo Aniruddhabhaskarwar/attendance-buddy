@@ -1,6 +1,24 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { ClassItem, Batch, Student, AttendanceRecord, AttendanceStatus, FeeRecord, FeeStatus } from '@/lib/types';
-import { mockClasses, mockBatches, mockStudents, mockAttendance, mockFees, classTokens } from '@/lib/mock-data';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { ClassItem, Batch, Student, AttendanceRecord, AttendanceStatus, FeeRecord } from '@/lib/types';
+import {
+  fetchClasses,
+  fetchBatches,
+  fetchStudents,
+  fetchAttendance,
+  fetchFees,
+  insertClass,
+  updateClassRow,
+  deleteClassRow,
+  insertBatch,
+  insertStudent,
+  updateStudentRow,
+  deleteStudentRow,
+  upsertAttendance,
+  insertFee,
+  updateFeeRow,
+  getStudentByToken as fetchStudentByToken,
+} from '@/lib/dataApi';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DataContextType {
   classes: ClassItem[];
@@ -9,136 +27,325 @@ interface DataContextType {
   attendance: AttendanceRecord[];
   fees: FeeRecord[];
   classTokens: Record<string, string>;
-  addClass: (name: string) => void;
-  updateClass: (id: string, name: string) => void;
-  deleteClass: (id: string) => void;
-  addBatch: (classId: string, name: string) => void;
-  addStudent: (student: Omit<Student, 'id' | 'parent_access_token' | 'created_at' | 'updated_at'>) => void;
-  updateStudent: (id: string, updates: Partial<Student>) => void;
-  deleteStudent: (id: string) => void;
-  saveAttendance: (records: { studentId: string; status: AttendanceStatus; date: string }[]) => void;
+  addClass: (name: string) => Promise<void>;
+  updateClass: (id: string, name: string) => Promise<void>;
+  deleteClass: (id: string) => Promise<void>;
+  addBatch: (classId: string, name: string) => Promise<void>;
+  addStudent: (student: Omit<Student, 'id' | 'parent_access_token' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateStudent: (id: string, updates: Partial<Student>) => Promise<void>;
+  deleteStudent: (id: string) => Promise<void>;
+  saveAttendance: (records: { studentId: string; status: AttendanceStatus; date: string }[]) => Promise<void>;
   getStudentsByBatch: (batchId: string) => Student[];
   getStudentsByClass: (classId: string) => Student[];
   getAttendanceByStudent: (studentId: string) => AttendanceRecord[];
-  getStudentByToken: (token: string) => Student | undefined;
+  getStudentByToken: (token: string) => Promise<Student | undefined>;
   getClassByToken: (token: string) => string | undefined;
-  importStudentsCSV: (data: Array<Record<string, string>>) => void;
-  regenerateParentToken: (studentId: string) => string;
+  importStudentsCSV: (data: Array<Record<string, string>>) => Promise<void>;
+  regenerateParentToken: (studentId: string) => Promise<string>;
   getFeesByStudent: (studentId: string) => FeeRecord[];
-  addFee: (fee: Omit<FeeRecord, 'id' | 'created_at' | 'updated_at'>) => void;
-  updateFee: (id: string, updates: Partial<FeeRecord>) => void;
+  addFee: (fee: Omit<FeeRecord, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateFee: (id: string, updates: Partial<FeeRecord>) => Promise<void>;
+  reloadAll: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [classes, setClasses] = useState<ClassItem[]>(mockClasses);
-  const [batches, setBatches] = useState<Batch[]>(mockBatches);
-  const [students, setStudents] = useState<Student[]>(mockStudents);
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>(mockAttendance);
-  const [fees, setFees] = useState<FeeRecord[]>(mockFees);
+  const { user } = useAuth();
 
-  const generateToken = () => crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '');
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [fees, setFees] = useState<FeeRecord[]>([]);
+  const [classTokens, setClassTokens] = useState<Record<string, string>>({});
 
-  const addClass = useCallback((name: string) => {
-    const now = new Date().toISOString();
-    const newClass: ClassItem = { id: crypto.randomUUID(), name, created_at: now };
-    setClasses(prev => [...prev, newClass]);
-    // Also create a default batch for the new class
-    const newBatch: Batch = { id: crypto.randomUUID(), class_id: newClass.id, name: 'Morning', teacher_id: null, active: true, created_at: now };
-    setBatches(prev => [...prev, newBatch]);
-  }, []);
-  const updateClass = useCallback((id: string, name: string) => {
-    setClasses(prev => prev.map(c => c.id === id ? { ...c, name } : c));
-  }, []);
+  const generateToken = () =>
+    crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '');
 
-  const deleteClass = useCallback((id: string) => {
-    setClasses(prev => prev.filter(c => c.id !== id));
-    setBatches(prev => prev.filter(b => b.class_id !== id));
-    setStudents(prev => prev.filter(s => s.class_id !== id));
-  }, []);
+  const reloadAll = useCallback(async () => {
+    const [classesRes, batchesRes, studentsRes, attendanceRes, feesRes] = await Promise.all([
+      fetchClasses(),
+      fetchBatches(),
+      fetchStudents(),
+      fetchAttendance(),
+      fetchFees(),
+    ]);
 
-  const addBatch = useCallback(() => {}, []);
+    setClasses((classesRes.data || []) as ClassItem[]);
+    setBatches((batchesRes.data || []) as Batch[]);
+    setStudents((studentsRes.data || []) as Student[]);
+    setAttendance((attendanceRes.data || []) as AttendanceRecord[]);
+    setFees((feesRes.data || []) as FeeRecord[]);
 
-  const addStudent = useCallback((student: Omit<Student, 'id' | 'parent_access_token' | 'created_at' | 'updated_at'>) => {
-    const now = new Date().toISOString();
-    setStudents(prev => [...prev, { ...student, id: crypto.randomUUID(), parent_access_token: generateToken(), created_at: now, updated_at: now }]);
-  }, []);
-
-  const updateStudent = useCallback((id: string, updates: Partial<Student>) => {
-    setStudents(prev => prev.map(s => s.id === id ? { ...s, ...updates, updated_at: new Date().toISOString() } : s));
+    if (classesRes.error) console.error('fetchClasses error:', classesRes.error);
+    if (batchesRes.error) console.error('fetchBatches error:', batchesRes.error);
+    if (studentsRes.error) console.error('fetchStudents error:', studentsRes.error);
+    if (attendanceRes.error) console.error('fetchAttendance error:', attendanceRes.error);
+    if (feesRes.error) console.error('fetchFees error:', feesRes.error);
   }, []);
 
-  const deleteStudent = useCallback((id: string) => {
-    setStudents(prev => prev.filter(s => s.id !== id));
-    setFees(prev => prev.filter(f => f.student_id !== id));
-    setAttendance(prev => prev.filter(a => a.student_id !== id));
-  }, []);
+  useEffect(() => {
+    reloadAll();
+  }, [reloadAll]);
 
-
-  const saveAttendance = useCallback((records: { studentId: string; status: AttendanceStatus; date: string }[]) => {
-    setAttendance(prev => {
-      const updated = [...prev];
-      records.forEach(({ studentId, status, date }) => {
-        const existing = updated.findIndex(a => a.student_id === studentId && a.attendance_date === date);
-        const now = new Date().toISOString();
-        if (existing >= 0) {
-          updated[existing] = { ...updated[existing], status, updated_at: now };
-        } else {
-          updated.push({ id: crypto.randomUUID(), student_id: studentId, attendance_date: date, status, marked_by_user_id: 'user-1', created_at: now, updated_at: now });
-        }
+  useEffect(() => {
+    if (classes.length > 0) {
+      const tokenMap: Record<string, string> = {};
+      classes.forEach((cls) => {
+        tokenMap[cls.id] = `class-${cls.id}`;
       });
-      return updated;
+      setClassTokens(tokenMap);
+    } else {
+      setClassTokens({});
+    }
+  }, [classes]);
+
+  const addClass = useCallback(async (name: string) => {
+    const { data, error } = await insertClass(name);
+    if (error) {
+      console.error('addClass error:', error);
+      return;
+    }
+
+    if (data) {
+      const { error: batchError } = await insertBatch({
+        class_id: data.id,
+        name: 'Morning',
+        teacher_id: null,
+        active: true,
+      });
+
+      if (batchError) {
+        console.error('default batch creation error:', batchError);
+      }
+    }
+
+    await reloadAll();
+  }, [reloadAll]);
+
+  const updateClass = useCallback(async (id: string, name: string) => {
+    const { error } = await updateClassRow(id, name);
+    if (error) {
+      console.error('updateClass error:', error);
+      return;
+    }
+    await reloadAll();
+  }, [reloadAll]);
+
+  const deleteClass = useCallback(async (id: string) => {
+    const { error } = await deleteClassRow(id);
+    if (error) {
+      console.error('deleteClass error:', error);
+      return;
+    }
+    await reloadAll();
+  }, [reloadAll]);
+
+  const addBatch = useCallback(async (classId: string, name: string) => {
+    const { error } = await insertBatch({
+      class_id: classId,
+      name,
+      teacher_id: null,
+      active: true,
     });
+
+    if (error) {
+      console.error('addBatch error:', error);
+      return;
+    }
+
+    await reloadAll();
+  }, [reloadAll]);
+
+  const addStudent = useCallback(async (student: Omit<Student, 'id' | 'parent_access_token' | 'created_at' | 'updated_at'>) => {
+    const payload = {
+      ...student,
+      parent_access_token: generateToken(),
+    };
+
+    const { error } = await insertStudent(payload);
+    if (error) {
+      console.error('addStudent error:', error);
+      return;
+    }
+
+    await reloadAll();
+  }, [reloadAll]);
+
+  const updateStudent = useCallback(async (id: string, updates: Partial<Student>) => {
+    const { error } = await updateStudentRow(id, updates);
+    if (error) {
+      console.error('updateStudent error:', error);
+      return;
+    }
+
+    await reloadAll();
+  }, [reloadAll]);
+
+  const deleteStudent = useCallback(async (id: string) => {
+    const { error } = await deleteStudentRow(id);
+    if (error) {
+      console.error('deleteStudent error:', error);
+      return;
+    }
+
+    await reloadAll();
+  }, [reloadAll]);
+
+  const saveAttendance = useCallback(async (records: { studentId: string; status: AttendanceStatus; date: string }[]) => {
+    if (!user?.id) {
+      console.error('saveAttendance error: no logged in user');
+      return;
+    }
+
+    const { error } = await upsertAttendance(
+      records.map((r) => ({
+        studentId: r.studentId,
+        status: r.status,
+        date: r.date,
+        markedBy: user.id,
+      }))
+    );
+
+    if (error) {
+      console.error('saveAttendance error:', error);
+      return;
+    }
+
+    await reloadAll();
+  }, [reloadAll, user]);
+
+  const getStudentsByBatch = useCallback(
+    (batchId: string) => students.filter((s) => s.batch_id === batchId && s.active),
+    [students]
+  );
+
+  const getStudentsByClass = useCallback(
+    (classId: string) => students.filter((s) => s.class_id === classId && s.active),
+    [students]
+  );
+
+  const getAttendanceByStudent = useCallback(
+    (studentId: string) =>
+      attendance
+        .filter((a) => a.student_id === studentId)
+        .sort((a, b) => b.attendance_date.localeCompare(a.attendance_date)),
+    [attendance]
+  );
+
+  const getStudentByToken = useCallback(async (token: string) => {
+    const { data, error } = await fetchStudentByToken(token);
+    if (error) {
+      console.error('getStudentByToken error:', error);
+      return undefined;
+    }
+    return data as Student | undefined;
   }, []);
-
-  const getStudentsByBatch = useCallback((batchId: string) => students.filter(s => s.batch_id === batchId && s.active), [students]);
-  const getStudentsByClass = useCallback((classId: string) => students.filter(s => s.class_id === classId && s.active), [students]);
-
-  const getAttendanceByStudent = useCallback((studentId: string) => {
-    return attendance.filter(a => a.student_id === studentId).sort((a, b) => b.attendance_date.localeCompare(a.attendance_date));
-  }, [attendance]);
-
-  const getStudentByToken = useCallback((token: string) => students.find(s => s.parent_access_token === token), [students]);
 
   const getClassByToken = useCallback((token: string) => {
     return Object.entries(classTokens).find(([, t]) => t === token)?.[0];
-  }, []);
+  }, [classTokens]);
 
-  const importStudentsCSV = useCallback((data: Array<Record<string, string>>) => {
-    const now = new Date().toISOString();
-    const newStudents: Student[] = data.map(row => {
-      const classItem = classes.find(c => c.name === row.class_name);
-      const batch = batches.find(b => b.class_id === classItem?.id);
-      return {
-        id: crypto.randomUUID(), full_name: row.full_name || '', roll_number: row.roll_number || '',
-        class_id: classItem?.id || '', batch_id: batch?.id || '', parent_name: row.parent_name || '',
-        parent_whatsapp: row.parent_whatsapp || '', secondary_parent_whatsapp: row.secondary_parent_whatsapp || null,
-        active: true, parent_access_token: generateToken(), created_at: now, updated_at: now,
+  const importStudentsCSV = useCallback(async (data: Array<Record<string, string>>) => {
+    for (const row of data) {
+      const classItem = classes.find((c) => c.name === row.class_name);
+      const batch = batches.find((b) => b.class_id === classItem?.id);
+
+      if (!row.full_name || !classItem?.id || !batch?.id) continue;
+
+      const payload = {
+        full_name: row.full_name || '',
+        roll_number: row.roll_number || '',
+        class_id: classItem.id,
+        batch_id: batch.id,
+        parent_name: row.parent_name || '',
+        parent_whatsapp: row.parent_whatsapp || '',
+        secondary_parent_whatsapp: row.secondary_parent_whatsapp || null,
+        active: true,
+        parent_access_token: generateToken(),
       };
-    }).filter(s => s.full_name && s.class_id && s.batch_id);
-    setStudents(prev => [...prev, ...newStudents]);
-  }, [classes, batches]);
 
-  const regenerateParentToken = useCallback((studentId: string) => {
+      const { error } = await insertStudent(payload);
+      if (error) {
+        console.error('importStudentsCSV row error:', error, row);
+      }
+    }
+
+    await reloadAll();
+  }, [classes, batches, reloadAll]);
+
+  const regenerateParentToken = useCallback(async (studentId: string) => {
     const newToken = generateToken();
-    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, parent_access_token: newToken, updated_at: new Date().toISOString() } : s));
+
+    const { error } = await updateStudentRow(studentId, {
+      parent_access_token: newToken,
+    });
+
+    if (error) {
+      console.error('regenerateParentToken error:', error);
+      return '';
+    }
+
+    await reloadAll();
     return newToken;
-  }, []);
+  }, [reloadAll]);
 
-  const getFeesByStudent = useCallback((studentId: string) => fees.filter(f => f.student_id === studentId), [fees]);
+  const getFeesByStudent = useCallback(
+    (studentId: string) => fees.filter((f) => f.student_id === studentId),
+    [fees]
+  );
 
-  const addFee = useCallback((fee: Omit<FeeRecord, 'id' | 'created_at' | 'updated_at'>) => {
-    const now = new Date().toISOString();
-    setFees(prev => [...prev, { ...fee, id: crypto.randomUUID(), created_at: now, updated_at: now }]);
-  }, []);
+  const addFee = useCallback(async (fee: Omit<FeeRecord, 'id' | 'created_at' | 'updated_at'>) => {
+    const { error } = await insertFee(fee);
+    if (error) {
+      console.error('addFee error:', error);
+      return;
+    }
 
-  const updateFee = useCallback((id: string, updates: Partial<FeeRecord>) => {
-    setFees(prev => prev.map(f => f.id === id ? { ...f, ...updates, updated_at: new Date().toISOString() } : f));
-  }, []);
+    await reloadAll();
+  }, [reloadAll]);
+
+  const updateFee = useCallback(async (id: string, updates: Partial<FeeRecord>) => {
+    const { error } = await updateFeeRow(id, updates);
+    if (error) {
+      console.error('updateFee error:', error);
+      return;
+    }
+
+    await reloadAll();
+  }, [reloadAll]);
 
   return (
-    <DataContext.Provider value={{ classes, batches, students, attendance, fees, classTokens, addClass, updateClass, deleteClass, addBatch, addStudent, updateStudent, deleteStudent, saveAttendance, getStudentsByBatch, getStudentsByClass, getAttendanceByStudent, getStudentByToken, getClassByToken, importStudentsCSV, regenerateParentToken, getFeesByStudent, addFee, updateFee }}>
+    <DataContext.Provider
+      value={{
+        classes,
+        batches,
+        students,
+        attendance,
+        fees,
+        classTokens,
+        addClass,
+        updateClass,
+        deleteClass,
+        addBatch,
+        addStudent,
+        updateStudent,
+        deleteStudent,
+        saveAttendance,
+        getStudentsByBatch,
+        getStudentsByClass,
+        getAttendanceByStudent,
+        getStudentByToken,
+        getClassByToken,
+        importStudentsCSV,
+        regenerateParentToken,
+        getFeesByStudent,
+        addFee,
+        updateFee,
+        reloadAll,
+      }}
+    >
       {children}
     </DataContext.Provider>
   );
