@@ -10,9 +10,12 @@ interface DataContextType {
   fees: FeeRecord[];
   classTokens: Record<string, string>;
   addClass: (name: string) => void;
+  updateClass: (id: string, name: string) => void;
+  deleteClass: (id: string) => void;
   addBatch: (classId: string, name: string) => void;
   addStudent: (student: Omit<Student, 'id' | 'parent_access_token' | 'created_at' | 'updated_at'>) => void;
   updateStudent: (id: string, updates: Partial<Student>) => void;
+  deleteStudent: (id: string) => void;
   saveAttendance: (records: { studentId: string; status: AttendanceStatus; date: string }[]) => void;
   getStudentsByBatch: (batchId: string) => Student[];
   getStudentsByClass: (classId: string) => Student[];
