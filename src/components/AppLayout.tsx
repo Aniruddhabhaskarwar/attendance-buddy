@@ -1,9 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Users, BookOpen, ClipboardCheck, History, LayoutDashboard, LogOut, Menu, X, IndianRupee } from 'lucide-react';
+import { Users, BookOpen, ClipboardCheck, History, LayoutDashboard, LogOut, Menu, X, IndianRupee, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -19,6 +18,12 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark');
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark);
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
+  }, [dark]);
 
   const handleLogout = () => {
     logout();
@@ -38,6 +43,9 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
             </Link>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setDark(d => !d)} className="h-8 w-8">
+              {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             <span className="text-sm text-muted-foreground hidden sm:inline">{user?.full_name}</span>
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="h-4 w-4" />

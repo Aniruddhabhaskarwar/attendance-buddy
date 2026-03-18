@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/button';
@@ -8,12 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Plus, Upload, Link as LinkIcon, Mic, MicOff } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 
 const StudentsPage: React.FC = () => {
   const { students, classes, batches, addStudent, updateStudent, importStudentsCSV, classTokens } = useData();
-  const [filterClass, setFilterClass] = useState('all');
+  const [searchParams] = useSearchParams();
+  const [filterClass, setFilterClass] = useState(searchParams.get('class') || 'all');
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editStudent, setEditStudent] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
@@ -22,6 +25,29 @@ const StudentsPage: React.FC = () => {
     full_name: '', roll_number: '', class_id: '',
     parent_name: '', parent_whatsapp: '', secondary_parent_whatsapp: '',
   });
+
+  // When editing, populate form
+  useEffect(() => {
+    if (editStudent) {
+      const s = students.find(st => st.id === editStudent);
+      if (s) {
+        setForm({
+          full_name: s.full_name,
+          roll_number: s.roll_number,
+          class_id: s.class_id,
+          parent_name: s.parent_name,
+          parent_whatsapp: s.parent_whatsapp,
+          secondary_parent_whatsapp: s.secondary_parent_whatsapp || '',
+        });
+      }
+    }
+  }, [editStudent, students]);
+
+  // Sync URL param
+  useEffect(() => {
+    const cls = searchParams.get('class');
+    if (cls) setFilterClass(cls);
+  }, [searchParams]);
 
   const filtered = useMemo(() => {
     return students.filter(s => {
@@ -45,6 +71,25 @@ const StudentsPage: React.FC = () => {
     setForm({ full_name: '', roll_number: '', class_id: '', parent_name: '', parent_whatsapp: '', secondary_parent_whatsapp: '' });
     setDialogOpen(false);
     toast.success('Student added');
+  };
+
+  const handleEdit = () => {
+    if (!editStudent || !form.full_name || !form.roll_number || !form.class_id) {
+      toast.error('Please fill required fields');
+      return;
+    }
+    updateStudent(editStudent, {
+      full_name: form.full_name,
+      roll_number: form.roll_number,
+      class_id: form.class_id,
+      batch_id: getBatchId(form.class_id),
+      parent_name: form.parent_name,
+      parent_whatsapp: form.parent_whatsapp,
+      secondary_parent_whatsapp: form.secondary_parent_whatsapp || null,
+    });
+    setEditStudent(null);
+    setForm({ full_name: '', roll_number: '', class_id: '', parent_name: '', parent_whatsapp: '', secondary_parent_whatsapp: '' });
+    toast.success('Student updated');
   };
 
   const handleCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -132,6 +177,7 @@ const StudentsPage: React.FC = () => {
                 </div>
                 <div><Label>Parent Name</Label><Input value={form.parent_name} onChange={e => setForm(f => ({ ...f, parent_name: e.target.value }))} /></div>
                 <div><Label>Parent WhatsApp</Label><Input value={form.parent_whatsapp} onChange={e => setForm(f => ({ ...f, parent_whatsapp: e.target.value }))} /></div>
+                <div><Label>Secondary WhatsApp</Label><Input value={form.secondary_parent_whatsapp} onChange={e => setForm(f => ({ ...f, secondary_parent_whatsapp: e.target.value }))} /></div>
                 <Button onClick={handleAdd} className="w-full">Add Student</Button>
               </div>
             </DialogContent>
@@ -150,7 +196,6 @@ const StudentsPage: React.FC = () => {
         </Select>
       </div>
 
-      {/* Class links */}
       <div className="flex gap-2 mb-4 flex-wrap">
         {classes.map(c => (
           <Button key={c.id} variant="outline" size="sm" onClick={() => copyClassLink(c.id)}>
@@ -165,7 +210,10 @@ const StudentsPage: React.FC = () => {
           return (
             <div key={student.id} className={`rounded-xl border border-border bg-card p-4 ${!student.active ? 'opacity-50' : ''}`}>
               <div className="flex items-center justify-between">
-                <div className="min-w-0 flex-1">
+                <div
+                  className="min-w-0 flex-1 cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => setEditStudent(student.id)}
+                >
                   <p className="font-medium text-sm">{student.full_name}</p>
                   <p className="text-xs text-muted-foreground">Roll #{student.roll_number} · {cls?.name}</p>
                   {student.parent_name && <p className="text-xs text-muted-foreground mt-1">Parent: {student.parent_name}</p>}
@@ -179,6 +227,28 @@ const StudentsPage: React.FC = () => {
         })}
         {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">No students found</p>}
       </div>
+
+      {/* Edit Student Dialog */}
+      <Dialog open={!!editStudent} onOpenChange={(open) => { if (!open) { setEditStudent(null); setForm({ full_name: '', roll_number: '', class_id: '', parent_name: '', parent_whatsapp: '', secondary_parent_whatsapp: '' }); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Edit Student</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>Full Name *</Label><Input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} /></div>
+            <div><Label>Roll Number *</Label><Input value={form.roll_number} onChange={e => setForm(f => ({ ...f, roll_number: e.target.value }))} /></div>
+            <div>
+              <Label>Class *</Label>
+              <Select value={form.class_id} onValueChange={v => setForm(f => ({ ...f, class_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div><Label>Parent Name</Label><Input value={form.parent_name} onChange={e => setForm(f => ({ ...f, parent_name: e.target.value }))} /></div>
+            <div><Label>Parent WhatsApp</Label><Input value={form.parent_whatsapp} onChange={e => setForm(f => ({ ...f, parent_whatsapp: e.target.value }))} /></div>
+            <div><Label>Secondary WhatsApp</Label><Input value={form.secondary_parent_whatsapp} onChange={e => setForm(f => ({ ...f, secondary_parent_whatsapp: e.target.value }))} /></div>
+            <Button onClick={handleEdit} className="w-full">Save Changes</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };
