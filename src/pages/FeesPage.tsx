@@ -16,6 +16,8 @@ const FeesPage: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [form, setForm] = useState({ total_amount: '', paid_amount: '', due_date: '', notes: '' });
+  const [editFee, setEditFee] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ total_amount: '', paid_amount: '', due_date: '', notes: '', status: '' });
 
   const filtered = useMemo(() => {
     if (!filterClass) return [];
@@ -57,6 +59,38 @@ const FeesPage: React.FC = () => {
   const markAsPaid = (feeId: string, totalAmount: number) => {
     updateFee(feeId, { paid_amount: totalAmount, status: 'paid', payment_date: new Date().toISOString().split('T')[0] });
     toast.success('Marked as paid');
+  };
+
+  const openEditFee = (feeId: string) => {
+    const fee = fees.find(f => f.id === feeId);
+    if (!fee) return;
+    setEditForm({
+      total_amount: String(fee.total_amount),
+      paid_amount: String(fee.paid_amount),
+      due_date: fee.due_date,
+      notes: fee.notes || '',
+      status: fee.status,
+    });
+    setEditFee(feeId);
+  };
+
+  const handleEditFee = () => {
+    if (!editFee || !editForm.total_amount || !editForm.due_date) {
+      toast.error('Fill required fields');
+      return;
+    }
+    const total = parseFloat(editForm.total_amount);
+    const paid = parseFloat(editForm.paid_amount) || 0;
+    updateFee(editFee, {
+      total_amount: total,
+      paid_amount: paid,
+      due_date: editForm.due_date,
+      notes: editForm.notes,
+      status: paid >= total ? 'paid' : 'unpaid',
+      payment_date: paid >= total ? new Date().toISOString().split('T')[0] : null,
+    });
+    setEditFee(null);
+    toast.success('Fee updated');
   };
 
   return (
@@ -137,12 +171,15 @@ const FeesPage: React.FC = () => {
           return (
             <div key={student.id} className={`rounded-xl border p-4 ${latest?.status === 'unpaid' ? 'border-destructive/30 bg-destructive/5' : 'border-border bg-card'}`}>
               <div className="flex items-center justify-between">
-                <div className="min-w-0 flex-1">
+                <div
+                  className="min-w-0 flex-1 cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => latest && openEditFee(latest.id)}
+                >
                   <p className="font-medium text-sm">{student.full_name}</p>
                   <p className="text-xs text-muted-foreground">Roll #{student.roll_number} · {cls?.name}</p>
                   {latest ? (
                     <div className="mt-1 flex items-center gap-2">
-                      <span className={`flex items-center gap-1 text-xs font-medium ${latest.status === 'paid' ? 'text-success' : 'text-destructive'}`}>
+                      <span className={`flex items-center gap-1 text-xs font-medium ${latest.status === 'paid' ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
                         <IndianRupee className="h-3 w-3" />
                         {latest.status === 'paid'
                           ? `₹${latest.total_amount} Paid`
@@ -167,9 +204,13 @@ const FeesPage: React.FC = () => {
               {studentFees.length > 1 && (
                 <div className="mt-2 pt-2 border-t border-border space-y-1">
                   {studentFees.slice(1, 4).map(f => (
-                    <div key={f.id} className="flex justify-between text-[11px] text-muted-foreground">
+                    <div
+                      key={f.id}
+                      className="flex justify-between text-[11px] text-muted-foreground cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => openEditFee(f.id)}
+                    >
                       <span>{f.notes || 'Fee'}</span>
-                      <span className={f.status === 'paid' ? 'text-success' : 'text-destructive'}>
+                      <span className={f.status === 'paid' ? 'text-[hsl(var(--success))]' : 'text-destructive'}>
                         {f.status === 'paid' ? `₹${f.total_amount} Paid` : `₹${f.total_amount - f.paid_amount} Due`}
                       </span>
                     </div>
@@ -179,10 +220,36 @@ const FeesPage: React.FC = () => {
             </div>
           );
         })}
-        {filtered.length === 0 && (
+        {filtered.length === 0 && filterClass && (
           <p className="text-center text-muted-foreground py-8">No students found</p>
         )}
       </div>
+
+      {/* Edit Fee Dialog */}
+      <Dialog open={!!editFee} onOpenChange={(open) => !open && setEditFee(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Edit Fee Record</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Total Amount (₹) *</Label>
+              <Input type="number" value={editForm.total_amount} onChange={e => setEditForm(f => ({ ...f, total_amount: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Paid Amount (₹)</Label>
+              <Input type="number" value={editForm.paid_amount} onChange={e => setEditForm(f => ({ ...f, paid_amount: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Due Date *</Label>
+              <Input type="date" value={editForm.due_date} onChange={e => setEditForm(f => ({ ...f, due_date: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Notes</Label>
+              <Input value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} />
+            </div>
+            <Button onClick={handleEditFee} className="w-full">Save Changes</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };
