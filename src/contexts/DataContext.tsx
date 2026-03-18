@@ -138,7 +138,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <DataContext.Provider value={{ classes, batches, students, attendance, fees, classTokens, addClass, addBatch, addStudent, updateStudent, saveAttendance, getStudentsByBatch, getStudentsByClass, getAttendanceByStudent, getStudentByToken, getClassByToken, importStudentsCSV, regenerateParentToken, getFeesByStudent, addFee, updateFee }}>
+    <DataContext.Provider value={{ classes, batches, students, attendance, fees, classTokens, addClass, updateClass, deleteClass, addBatch, addStudent, updateStudent, deleteStudent, saveAttendance, getStudentsByBatch, getStudentsByClass, getAttendanceByStudent, getStudentByToken, getClassByToken, importStudentsCSV, regenerateParentToken, getFeesByStudent, addFee, updateFee }}>
       {children}
     </DataContext.Provider>
   );
