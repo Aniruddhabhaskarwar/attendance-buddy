@@ -1,60 +1,104 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useData } from '@/contexts/DataContext';
 import { AttendanceStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Check, X, IndianRupee } from 'lucide-react';
 
 const AttendancePage: React.FC = () => {
-  const { classes, batches, getStudentsByBatch, saveAttendance, attendance, getFeesByStudent } = useData();
+  const {
+    classes,
+    batches,
+    getStudentsByBatch,
+    saveAttendance,
+    attendance,
+    getFeesByStudent,
+  } = useData();
+
   const [selectedClass, setSelectedClass] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [statuses, setStatuses] = useState<Record<string, AttendanceStatus>>({});
   const [saving, setSaving] = useState(false);
 
-  const selectedBatch = useMemo(
-    () => batches.find(b => b.class_id === selectedClass && b.active)?.id || '',
-    [batches, selectedClass]
-  );
+  const selectedBatch = useMemo(() => {
+    return batches.find((b) => b.class_id === selectedClass && b.active)?.id || '';
+  }, [batches, selectedClass]);
 
   const students = useMemo(() => {
     if (!selectedBatch) return [];
-    const list = getStudentsByBatch(selectedBatch);
-    const initial: Record<string, AttendanceStatus> = {};
-    list.forEach(s => {
-      const existing = attendance.find(a => a.student_id === s.id && a.attendance_date === date);
-      initial[s.id] = existing?.status || 'P';
-    });
-    if (Object.keys(statuses).length === 0 || Object.keys(statuses)[0] !== list[0]?.id) {
-      setStatuses(initial);
-    }
-    return list;
-  }, [selectedBatch, getStudentsByBatch, attendance, date]);
+    return getStudentsByBatch(selectedBatch);
+  }, [selectedBatch, getStudentsByBatch]);
 
-  const handleSave = () => {
-    setSaving(true);
-    const records = students.map(s => ({ studentId: s.id, status: statuses[s.id] || 'P', date }));
-    saveAttendance(records);
-    setSaving(false);
-    const present = records.filter(r => r.status === 'P').length;
-    const absent = records.filter(r => r.status === 'A').length;
-    toast.success(`Attendance saved! ${present}P / ${absent}A`);
+  useEffect(() => {
+    if (!selectedBatch || students.length === 0) {
+      setStatuses({});
+      return;
+    }
+
+    const initial: Record<string, AttendanceStatus> = {};
+    students.forEach((student) => {
+      const existing = attendance.find(
+        (a) => a.student_id === student.id && a.attendance_date === date
+      );
+      initial[student.id] = existing?.status || 'P';
+    });
+
+    setStatuses(initial);
+  }, [selectedBatch, students, attendance, date]);
+
+  const handleSave = async () => {
+    if (!selectedClass || !selectedBatch || students.length === 0) {
+      toast.error('Please select a class with students');
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const records = students.map((student) => ({
+        studentId: student.id,
+        status: statuses[student.id] || 'P',
+        date,
+      }));
+
+      await saveAttendance(records);
+
+      const present = records.filter((r) => r.status === 'P').length;
+      const absent = records.filter((r) => r.status === 'A').length;
+
+      toast.success(`Attendance saved! ${present}P / ${absent}A`);
+    } catch (error) {
+      console.error('Attendance save error:', error);
+      toast.error('Failed to save attendance');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleClassChange = (val: string) => {
-    setSelectedClass(val);
+  const handleClassChange = (value: string) => {
+    setSelectedClass(value);
     setStatuses({});
   };
 
-  const presentCount = Object.values(statuses).filter(s => s === 'P').length;
-  const absentCount = Object.values(statuses).filter(s => s === 'A').length;
+  const presentCount = Object.values(statuses).filter((s) => s === 'P').length;
+  const absentCount = Object.values(statuses).filter((s) => s === 'A').length;
 
   const getStudentFeeStatus = (studentId: string) => {
     const studentFees = getFeesByStudent(studentId);
     if (studentFees.length === 0) return null;
-    const latest = studentFees.sort((a, b) => b.due_date.localeCompare(a.due_date))[0];
+
+    const latest = [...studentFees].sort((a, b) =>
+      b.due_date.localeCompare(a.due_date)
+    )[0];
+
     return latest;
   };
 
@@ -68,8 +112,10 @@ const AttendancePage: React.FC = () => {
             <SelectValue placeholder="Select Class" />
           </SelectTrigger>
           <SelectContent>
-            {classes.map(c => (
-              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            {classes.map((cls) => (
+              <SelectItem key={cls.id} value={cls.id}>
+                {cls.name}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -77,7 +123,10 @@ const AttendancePage: React.FC = () => {
         <input
           type="date"
           value={date}
-          onChange={e => { setDate(e.target.value); setStatuses({}); }}
+          onChange={(e) => {
+            setDate(e.target.value);
+            setStatuses({});
+          }}
           className="h-12 rounded-lg border border-input bg-background px-3 text-sm"
         />
       </div>
@@ -91,7 +140,7 @@ const AttendancePage: React.FC = () => {
       )}
 
       <div className="space-y-2 pb-24">
-        {students.map(student => {
+        {students.map((student) => {
           const status = statuses[student.id] || 'P';
           const isAbsent = status === 'A';
           const fee = getStudentFeeStatus(student.id);
@@ -102,25 +151,35 @@ const AttendancePage: React.FC = () => {
             <div
               key={student.id}
               className={`flex items-center justify-between rounded-xl border p-4 transition-colors ${
-                isAbsent ? 'border-destructive/30 bg-destructive/5' : 'border-border bg-card'
+                isAbsent
+                  ? 'border-destructive/30 bg-destructive/5'
+                  : 'border-border bg-card'
               }`}
             >
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-sm truncate">{student.full_name}</p>
-                <p className="text-xs text-muted-foreground">Roll #{student.roll_number}</p>
+                <p className="text-xs text-muted-foreground">
+                  Roll #{student.roll_number}
+                </p>
+
                 {fee && (
-                  <div className={`flex items-center gap-1 mt-1 text-xs font-medium ${feeUnpaid ? 'text-destructive' : 'text-success'}`}>
+                  <div
+                    className={`flex items-center gap-1 mt-1 text-xs font-medium ${
+                      feeUnpaid ? 'text-destructive' : 'text-success'
+                    }`}
+                  >
                     <IndianRupee className="h-3 w-3" />
-                    {feeUnpaid
-                      ? `₹${feeDue} due`
-                      : 'Fee Paid'
-                    }
+                    {feeUnpaid ? `₹${feeDue} due` : 'Fee Paid'}
                   </div>
                 )}
               </div>
+
               <div className="flex gap-2 ml-3">
                 <button
-                  onClick={() => setStatuses(prev => ({ ...prev, [student.id]: 'P' }))}
+                  type="button"
+                  onClick={() =>
+                    setStatuses((prev) => ({ ...prev, [student.id]: 'P' }))
+                  }
                   className={`h-11 w-11 rounded-lg font-bold text-sm flex items-center justify-center transition-all ${
                     status === 'P'
                       ? 'bg-success text-success-foreground shadow-sm'
@@ -129,8 +188,12 @@ const AttendancePage: React.FC = () => {
                 >
                   <Check className="h-5 w-5" />
                 </button>
+
                 <button
-                  onClick={() => setStatuses(prev => ({ ...prev, [student.id]: 'A' }))}
+                  type="button"
+                  onClick={() =>
+                    setStatuses((prev) => ({ ...prev, [student.id]: 'A' }))
+                  }
                   className={`h-11 w-11 rounded-lg font-bold text-sm flex items-center justify-center transition-all ${
                     status === 'A'
                       ? 'bg-destructive text-destructive-foreground shadow-sm'
@@ -143,6 +206,12 @@ const AttendancePage: React.FC = () => {
             </div>
           );
         })}
+
+        {selectedClass && students.length === 0 && (
+          <p className="text-center text-muted-foreground py-8">
+            No students found in this class
+          </p>
+        )}
       </div>
 
       {students.length > 0 && (

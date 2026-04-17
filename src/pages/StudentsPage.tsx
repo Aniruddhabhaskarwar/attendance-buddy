@@ -10,9 +10,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from 'sonner';
 import { Plus, Upload, Link as LinkIcon, Mic, MicOff, Trash2 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import { useAuth } from "@/contexts/AuthContext";
 
 const StudentsPage: React.FC = () => {
-  const { students, classes, batches, addStudent, updateStudent, deleteStudent, importStudentsCSV, classTokens } = useData();
+  const { students, classes, batches, addStudent, updateStudent, deleteStudent, importStudentsCSV, getClassTokenByClassId, } = useData();
   const [searchParams] = useSearchParams();
   const [filterClass, setFilterClass] = useState(searchParams.get('class') || 'all');
   const [search, setSearch] = useState('');
@@ -103,7 +104,7 @@ const StudentsPage: React.FC = () => {
   };
 
   const copyClassLink = (classId: string) => {
-    const token = classTokens[classId];
+    const token = getClassTokenByClassId(classId);
     if (!token) { toast.error('No link for this class'); return; }
     const url = `${window.location.origin}/parent/${token}`;
     navigator.clipboard.writeText(url);

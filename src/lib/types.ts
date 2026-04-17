@@ -2,6 +2,30 @@ export type UserRole = 'admin' | 'teacher';
 export type AttendanceStatus = 'P' | 'A';
 export type FeeStatus = 'paid' | 'unpaid';
 
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  owner_user_id: string | null;
+  created_at: string;
+}
+
+export interface OrganizationUser {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  role: 'admin' | 'teacher';
+  created_at: string;
+}
+
+export interface ClassLink {
+  id: string;
+  organization_id: string;
+  class_id: string;
+  token: string;
+  created_at: string;
+}
+
 export interface AppUser {
   id: string;
   full_name: string;

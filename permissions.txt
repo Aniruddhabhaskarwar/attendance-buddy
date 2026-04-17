@@ -1,0 +1,25 @@
+| schemaname | tablename  | policyname                          | permissive | roles           | cmd    | qual | with_check |
+| ---------- | ---------- | ----------------------------------- | ---------- | --------------- | ------ | ---- | ---------- |
+| public     | classes    | anon can read classes               | PERMISSIVE | {anon}          | SELECT | true | null       |
+| public     | classes    | authenticated can delete classes    | PERMISSIVE | {authenticated} | DELETE | true | null       |
+| public     | classes    | authenticated can update classes    | PERMISSIVE | {authenticated} | UPDATE | true | true       |
+| public     | classes    | authenticated can insert classes    | PERMISSIVE | {authenticated} | INSERT | null | true       |
+| public     | classes    | authenticated can read classes      | PERMISSIVE | {authenticated} | SELECT | true | null       |
+| public     | batches    | authenticated can delete batches    | PERMISSIVE | {authenticated} | DELETE | true | null       |
+| public     | batches    | authenticated can update batches    | PERMISSIVE | {authenticated} | UPDATE | true | true       |
+| public     | batches    | authenticated can insert batches    | PERMISSIVE | {authenticated} | INSERT | null | true       |
+| public     | batches    | authenticated can read batches      | PERMISSIVE | {authenticated} | SELECT | true | null       |
+| public     | students   | anon can read students              | PERMISSIVE | {anon}          | SELECT | true | null       |
+| public     | students   | authenticated can delete students   | PERMISSIVE | {authenticated} | DELETE | true | null       |
+| public     | students   | authenticated can update students   | PERMISSIVE | {authenticated} | UPDATE | true | true       |
+| public     | students   | authenticated can insert students   | PERMISSIVE | {authenticated} | INSERT | null | true       |
+| public     | students   | authenticated can read students     | PERMISSIVE | {authenticated} | SELECT | true | null       |
+| public     | attendance | anon can read attendance            | PERMISSIVE | {anon}          | SELECT | true | null       |
+| public     | attendance | authenticated can delete attendance | PERMISSIVE | {authenticated} | DELETE | true | null       |
+| public     | attendance | authenticated can update attendance | PERMISSIVE | {authenticated} | UPDATE | true | true       |
+| public     | attendance | authenticated can insert attendance | PERMISSIVE | {authenticated} | INSERT | null | true       |
+| public     | attendance | authenticated can read attendance   | PERMISSIVE | {authenticated} | SELECT | true | null       |
+| public     | fees       | authenticated can delete fees       | PERMISSIVE | {authenticated} | DELETE | true | null       |
+| public     | fees       | authenticated can update fees       | PERMISSIVE | {authenticated} | UPDATE | true | true       |
+| public     | fees       | authenticated can insert fees       | PERMISSIVE | {authenticated} | INSERT | null | true       |
+| public     | fees       | authenticated can read fees         | PERMISSIVE | {authenticated} | SELECT | true | null       |
