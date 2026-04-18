@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useData } from '@/contexts/DataContext';
 import { AttendanceStatus } from '@/lib/types';
@@ -11,20 +11,29 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Check, X, IndianRupee } from 'lucide-react';
+import { Check, X, IndianRupee, ClipboardCheck, Users } from 'lucide-react';
+import { motion } from 'framer-motion';
+
+function getLocalDateString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 const AttendancePage: React.FC = () => {
   const {
     classes,
     batches,
+    attendance,
     getStudentsByBatch,
     saveAttendance,
-    attendance,
     getFeesByStudent,
   } = useData();
 
   const [selectedClass, setSelectedClass] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getLocalDateString());
   const [statuses, setStatuses] = useState<Record<string, AttendanceStatus>>({});
   const [saving, setSaving] = useState(false);
 
@@ -44,6 +53,7 @@ const AttendancePage: React.FC = () => {
     }
 
     const initial: Record<string, AttendanceStatus> = {};
+
     students.forEach((student) => {
       const existing = attendance.find(
         (a) => a.student_id === student.id && a.attendance_date === date
@@ -74,7 +84,7 @@ const AttendancePage: React.FC = () => {
       const present = records.filter((r) => r.status === 'P').length;
       const absent = records.filter((r) => r.status === 'A').length;
 
-      toast.success(`Attendance saved! ${present}P / ${absent}A`);
+      toast.success(`Attendance saved! ${present} present, ${absent} absent`);
     } catch (error) {
       console.error('Attendance save error:', error);
       toast.error('Failed to save attendance');
@@ -104,129 +114,233 @@ const AttendancePage: React.FC = () => {
 
   return (
     <AppLayout>
-      <h1 className="text-xl font-bold mb-4">Mark Attendance</h1>
+      <div className="space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="flex flex-col gap-1"
+        >
+          <h1 className="text-2xl font-bold tracking-tight">Mark Attendance</h1>
+          <p className="text-sm text-muted-foreground">
+            Track daily attendance class-wise with a quick present/absent flow.
+          </p>
+        </motion.div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-        <Select value={selectedClass} onValueChange={handleClassChange}>
-          <SelectTrigger className="h-12">
-            <SelectValue placeholder="Select Class" />
-          </SelectTrigger>
-          <SelectContent>
-            {classes.map((cls) => (
-              <SelectItem key={cls.id} value={cls.id}>
-                {cls.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => {
-            setDate(e.target.value);
-            setStatuses({});
-          }}
-          className="h-12 rounded-lg border border-input bg-background px-3 text-sm"
-        />
-      </div>
-
-      {students.length > 0 && (
-        <div className="flex items-center gap-4 text-sm mb-3 px-1">
-          <span className="text-muted-foreground">{students.length} students</span>
-          <span className="text-success font-medium">{presentCount} P</span>
-          <span className="text-destructive font-medium">{absentCount} A</span>
-        </div>
-      )}
-
-      <div className="space-y-2 pb-24">
-        {students.map((student) => {
-          const status = statuses[student.id] || 'P';
-          const isAbsent = status === 'A';
-          const fee = getStudentFeeStatus(student.id);
-          const feeUnpaid = fee && fee.status === 'unpaid';
-          const feeDue = fee ? fee.total_amount - fee.paid_amount : 0;
-
-          return (
-            <div
-              key={student.id}
-              className={`flex items-center justify-between rounded-xl border p-4 transition-colors ${
-                isAbsent
-                  ? 'border-destructive/30 bg-destructive/5'
-                  : 'border-border bg-card'
-              }`}
-            >
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-sm truncate">{student.full_name}</p>
-                <p className="text-xs text-muted-foreground">
-                  Roll #{student.roll_number}
-                </p>
-
-                {fee && (
-                  <div
-                    className={`flex items-center gap-1 mt-1 text-xs font-medium ${
-                      feeUnpaid ? 'text-destructive' : 'text-success'
-                    }`}
-                  >
-                    <IndianRupee className="h-3 w-3" />
-                    {feeUnpaid ? `₹${feeDue} due` : 'Fee Paid'}
-                  </div>
-                )}
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.05 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-3"
+        >
+          <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="rounded-xl bg-primary/10 p-2.5">
+                <ClipboardCheck className="h-4 w-4 text-primary" />
               </div>
-
-              <div className="flex gap-2 ml-3">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setStatuses((prev) => ({ ...prev, [student.id]: 'P' }))
-                  }
-                  className={`h-11 w-11 rounded-lg font-bold text-sm flex items-center justify-center transition-all ${
-                    status === 'P'
-                      ? 'bg-success text-success-foreground shadow-sm'
-                      : 'bg-secondary text-muted-foreground hover:bg-success/20'
-                  }`}
-                >
-                  <Check className="h-5 w-5" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setStatuses((prev) => ({ ...prev, [student.id]: 'A' }))
-                  }
-                  className={`h-11 w-11 rounded-lg font-bold text-sm flex items-center justify-center transition-all ${
-                    status === 'A'
-                      ? 'bg-destructive text-destructive-foreground shadow-sm'
-                      : 'bg-secondary text-muted-foreground hover:bg-destructive/20'
-                  }`}
-                >
-                  <X className="h-5 w-5" />
-                </button>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
+                  Selected Date
+                </p>
+                <p className="text-sm font-semibold">{date}</p>
               </div>
             </div>
-          );
-        })}
+          </div>
 
-        {selectedClass && students.length === 0 && (
-          <p className="text-center text-muted-foreground py-8">
-            No students found in this class
-          </p>
+          <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="rounded-xl bg-green-500/10 p-2.5">
+                <Users className="h-4 w-4 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
+                  Present
+                </p>
+                <p className="text-sm font-semibold">{presentCount}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="rounded-xl bg-destructive/10 p-2.5">
+                <X className="h-4 w-4 text-destructive" />
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
+                  Absent
+                </p>
+                <p className="text-sm font-semibold">{absentCount}</p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.08 }}
+          className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                Select Class
+              </label>
+              <Select value={selectedClass} onValueChange={handleClassChange}>
+                <SelectTrigger className="h-11 rounded-xl">
+                  <SelectValue placeholder="Choose a class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {classes.map((cls) => (
+                    <SelectItem key={cls.id} value={cls.id}>
+                      {cls.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                Attendance Date
+              </label>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  setStatuses({});
+                }}
+                className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-primary"
+              />
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.12 }}
+          className="space-y-3 pb-24"
+        >
+          {students.length > 0 && (
+            <div className="flex items-center justify-between px-1">
+              <p className="text-sm text-muted-foreground">
+                {students.length} student{students.length > 1 ? 's' : ''} in this batch
+              </p>
+              <div className="flex items-center gap-3 text-xs font-medium">
+                <span className="text-green-600 dark:text-green-400">
+                  {presentCount} Present
+                </span>
+                <span className="text-destructive">{absentCount} Absent</span>
+              </div>
+            </div>
+          )}
+
+          {students.map((student, index) => {
+            const status = statuses[student.id] || 'P';
+            const isAbsent = status === 'A';
+            const fee = getStudentFeeStatus(student.id);
+            const feeUnpaid = fee && fee.status === 'unpaid';
+            const feeDue = fee ? fee.total_amount - fee.paid_amount : 0;
+
+            return (
+              <motion.div
+                key={student.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.22, delay: index * 0.03 }}
+                className={`flex items-center justify-between rounded-2xl border p-4 transition-all shadow-sm ${
+                  isAbsent
+                    ? 'border-destructive/30 bg-destructive/5'
+                    : 'border-border/60 bg-card'
+                }`}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-sm truncate">{student.full_name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Roll #{student.roll_number}
+                  </p>
+
+                  {fee && (
+                    <div
+                      className={`flex items-center gap-1 mt-2 text-xs font-medium ${
+                        feeUnpaid ? 'text-destructive' : 'text-green-600 dark:text-green-400'
+                      }`}
+                    >
+                      <IndianRupee className="h-3 w-3" />
+                      {feeUnpaid ? `₹${feeDue} pending` : 'Fee paid'}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2 ml-4">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setStatuses((prev) => ({ ...prev, [student.id]: 'P' }))
+                    }
+                    className={`h-11 w-11 rounded-xl flex items-center justify-center transition-all ${
+                      status === 'P'
+                        ? 'bg-green-600 text-white shadow-sm'
+                        : 'bg-secondary text-muted-foreground hover:bg-green-500/15'
+                    }`}
+                  >
+                    <Check className="h-5 w-5" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setStatuses((prev) => ({ ...prev, [student.id]: 'A' }))
+                    }
+                    className={`h-11 w-11 rounded-xl flex items-center justify-center transition-all ${
+                      status === 'A'
+                        ? 'bg-destructive text-white shadow-sm'
+                        : 'bg-secondary text-muted-foreground hover:bg-destructive/15'
+                    }`}
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              </motion.div>
+            );
+          })}
+
+          {selectedClass && students.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-border/70 bg-card p-8 text-center">
+              <p className="text-sm text-muted-foreground">
+                No students found in this class.
+              </p>
+            </div>
+          )}
+
+          {!selectedClass && (
+            <div className="rounded-2xl border border-dashed border-border/70 bg-card p-8 text-center">
+              <p className="text-sm text-muted-foreground">
+                Select a class to start marking attendance.
+              </p>
+            </div>
+          )}
+        </motion.div>
+
+        {students.length > 0 && (
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur-xl border-t border-border/60 md:left-56">
+            <div className="container max-w-5xl">
+              <Button
+                onClick={handleSave}
+                disabled={saving}
+                className="w-full h-12 rounded-xl font-semibold text-base"
+              >
+                {saving
+                  ? 'Saving...'
+                  : `Save Attendance (${presentCount} Present / ${absentCount} Absent)`}
+              </Button>
+            </div>
+          </div>
         )}
       </div>
-
-      {students.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-card/95 backdrop-blur border-t border-border md:left-56">
-          <div className="container max-w-5xl">
-            <Button
-              onClick={handleSave}
-              disabled={saving}
-              className="w-full h-12 font-semibold text-base"
-            >
-              {saving ? 'Saving...' : `Save Attendance (${presentCount}P / ${absentCount}A)`}
-            </Button>
-          </div>
-        </div>
-      )}
     </AppLayout>
   );
 };
