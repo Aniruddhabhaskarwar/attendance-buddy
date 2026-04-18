@@ -26,10 +26,24 @@ import { Plus, Users, IndianRupee, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
+const getClassLink = (token: string) => {
+  return `${window.location.origin}/parent/${token}`;
+};
+
+const copyLink = async (token: string) => {
+  await navigator.clipboard.writeText(getClassLink(token));
+  toast.success('Parent link copied!');
+};
+
+const openLink = (token: string) => {
+  window.open(getClassLink(token), '_blank');
+};
+
 const ClassesPage: React.FC = () => {
   const {
     classes,
     students,
+    classLinks,
     addFee,
     getStudentsByClass,
     addClass,
@@ -107,7 +121,11 @@ const ClassesPage: React.FC = () => {
 
     toast.success(`Fee added for ${classStudents.length} students`);
     setBatchFeeDialog(null);
-    setBatchFeeForm({ total_amount: '', due_date: '', notes: '' });
+    setBatchFeeForm({
+      total_amount: '',
+      due_date: '',
+      notes: '',
+    });
   };
 
   return (
@@ -151,6 +169,8 @@ const ClassesPage: React.FC = () => {
           const clsStudents = students.filter(
             (s) => s.class_id === cls.id && s.active
           ).length;
+
+          const link = classLinks?.find((l) => l.class_id === cls.id);
 
           return (
             <div
@@ -222,6 +242,37 @@ const ClassesPage: React.FC = () => {
                   </Button>
                 </div>
               </div>
+
+              {link && (
+                <div
+                  className="mt-3 p-2 rounded-lg bg-secondary/40 flex items-center justify-between"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="text-xs text-muted-foreground">
+                    Parent Access
+                  </span>
+
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-lg"
+                      onClick={() => copyLink(link.token)}
+                    >
+                      Copy
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="rounded-lg"
+                      onClick={() => openLink(link.token)}
+                    >
+                      Open
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -230,7 +281,10 @@ const ClassesPage: React.FC = () => {
       <Dialog
         open={!!editClassId}
         onOpenChange={(open) => {
-          if (!open) setEditClassId(null);
+          if (!open) {
+            setEditClassId(null);
+            setEditClassName('');
+          }
         }}
       >
         <DialogContent className="max-w-sm">
@@ -256,7 +310,11 @@ const ClassesPage: React.FC = () => {
 
       <Dialog
         open={!!batchFeeDialog}
-        onOpenChange={(open) => !open && setBatchFeeDialog(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setBatchFeeDialog(null);
+          }
+        }}
       >
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -275,7 +333,10 @@ const ClassesPage: React.FC = () => {
                 type="number"
                 value={batchFeeForm.total_amount}
                 onChange={(e) =>
-                  setBatchFeeForm((f) => ({ ...f, total_amount: e.target.value }))
+                  setBatchFeeForm((f) => ({
+                    ...f,
+                    total_amount: e.target.value,
+                  }))
                 }
                 placeholder="5000"
               />
@@ -287,7 +348,10 @@ const ClassesPage: React.FC = () => {
                 type="date"
                 value={batchFeeForm.due_date}
                 onChange={(e) =>
-                  setBatchFeeForm((f) => ({ ...f, due_date: e.target.value }))
+                  setBatchFeeForm((f) => ({
+                    ...f,
+                    due_date: e.target.value,
+                  }))
                 }
               />
             </div>
@@ -297,7 +361,10 @@ const ClassesPage: React.FC = () => {
               <Input
                 value={batchFeeForm.notes}
                 onChange={(e) =>
-                  setBatchFeeForm((f) => ({ ...f, notes: e.target.value }))
+                  setBatchFeeForm((f) => ({
+                    ...f,
+                    notes: e.target.value,
+                  }))
                 }
                 placeholder="March tuition fee"
               />
