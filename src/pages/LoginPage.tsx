@@ -53,7 +53,8 @@ const LoginPage: React.FC = () => {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold tracking-tight">
-            <span className="text-primary">Bhaskarwar&apos;s</span> Coaching
+            <span className="text-primary">Class</span>
+            <span className="hidden sm:inline text-foreground">Track</span>
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Attendance Portal</p>
         </div>
