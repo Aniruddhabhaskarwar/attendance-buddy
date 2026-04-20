@@ -98,8 +98,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
             </button>
 
             <Link to="/dashboard" className="font-bold text-lg tracking-tight select-none">
-              <span className="text-primary">Bhaskarwar&apos;s</span>
-              <span className="hidden sm:inline text-foreground"> Coaching</span>
+              <span className="text-primary">Class</span>
+              <span className="hidden sm:inline text-foreground">Track</span>
             </Link>
           </div>
 
