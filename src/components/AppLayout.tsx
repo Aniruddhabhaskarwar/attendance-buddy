@@ -99,7 +99,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
 
             <Link to="/dashboard" className="font-bold text-lg tracking-tight select-none">
               <span className="text-primary">Class</span>
-              <span className="hidden sm:inline text-foreground">Track</span>
+              <span className="text-foreground">Track</span>
             </Link>
           </div>
 

@@ -54,7 +54,7 @@ const LoginPage: React.FC = () => {
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold tracking-tight">
             <span className="text-primary">Class</span>
-            <span className="hidden sm:inline text-foreground">Track</span>
+            <span className="text-foreground">Track</span>
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Attendance Portal</p>
         </div>
