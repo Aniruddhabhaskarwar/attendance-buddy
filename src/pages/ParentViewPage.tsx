@@ -201,7 +201,7 @@ export default function ParentViewPage() {
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                 <span className="text-primary">Class</span>
-                <span className="hidden sm:inline text-foreground">Track</span>
+                <span className="text-foreground">Track</span>
               </p>
               <h1 className="mt-1 text-2xl font-bold">Parent Attendance Portal</h1>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">

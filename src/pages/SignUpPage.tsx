@@ -100,7 +100,7 @@ const SignUpPage: React.FC = () => {
         <div className="flex items-center justify-center gap-3">
           <h1 className="text-2xl font-bold tracking-tight">
             <span className="text-primary">Class</span>
-            <span className="hidden sm:inline text-foreground">Track</span>
+            <span className="text-foreground">Track</span>
           </h1>
         </div>
 
