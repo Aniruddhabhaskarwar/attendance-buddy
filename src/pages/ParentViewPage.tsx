@@ -131,6 +131,10 @@ export default function ParentViewPage() {
     };
   }, [token]);
 
+  const sortedStudents = [...students].sort((a, b) =>
+  a.full_name.toLowerCase().localeCompare(b.full_name.toLowerCase())
+  );
+
   const toggleStudent = async (studentId: string) => {
     const nextOpen = openStudentId === studentId ? null : studentId;
     setOpenStudentId(nextOpen);
@@ -201,7 +205,7 @@ export default function ParentViewPage() {
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                 <span className="text-primary">Class</span>
-                <span className="text-foreground">Track</span>
+                <span>Track</span>
               </p>
               <h1 className="mt-1 text-2xl font-bold">Parent Attendance Portal</h1>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -250,7 +254,7 @@ export default function ParentViewPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {students.map((student) => {
+            {sortedStudents.map((student) => {
               const studentData = attendanceMap[student.id];
               const summary = studentData?.summary;
               const records = studentData?.attendance || [];

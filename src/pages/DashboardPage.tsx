@@ -76,42 +76,49 @@ function StatCard({
   icon: Icon,
   colorClass,
   tintClass,
+  to,
 }: {
   label: string;
   value: number;
   icon: LucideIcon;
   colorClass: string;
   tintClass: string;
+  to: string;
 }) {
   const count = useCountUp(value, 1000);
 
   return (
-    <motion.div
-      variants={fadeUp}
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      className="group relative rounded-2xl border border-border/60 bg-card p-5 overflow-hidden cursor-default select-none"
-      style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)' }}
-    >
-      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-primary/3 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+    <motion.div variants={fadeUp} whileHover={{ y: -4, transition: { duration: 0.2 } }}>
+      <Link
+        to={to}
+        className="group relative block overflow-hidden rounded-2xl border border-border/60 bg-card p-5 transition-all duration-200 hover:border-primary/40 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/30"
+        style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)' }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-primary/3 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
 
-      <div className="relative">
-        <div className="flex items-start justify-between mb-3">
-          <div className={`rounded-xl p-2.5 ${tintClass}`}>
-            <Icon className={`h-4 w-4 ${colorClass}`} />
+        <div className="relative">
+          <div className="mb-3 flex items-start justify-between">
+            <div className={`rounded-xl p-2.5 ${tintClass}`}>
+              <Icon className={`h-4 w-4 ${colorClass}`} />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.3, duration: 0.3 }}
+              >
+                <TrendingUp className="h-3 w-3 text-muted-foreground/40" />
+              </motion.div>
+
+              <ArrowRight className="h-4 w-4 text-muted-foreground/40 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-primary" />
+            </div>
           </div>
 
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.3 }}
-          >
-            <TrendingUp className="h-3 w-3 text-muted-foreground/40" />
-          </motion.div>
+          <div className={`mb-1 text-3xl font-bold tracking-tight ${colorClass}`}>{count}</div>
+          <p className="text-xs font-medium leading-none text-muted-foreground/80">{label}</p>
         </div>
-
-        <div className={`text-3xl font-bold tracking-tight mb-1 ${colorClass}`}>{count}</div>
-        <p className="text-xs font-medium text-muted-foreground/80 leading-none">{label}</p>
-      </div>
+      </Link>
     </motion.div>
   );
 }
@@ -132,6 +139,7 @@ const DashboardPage: React.FC = () => {
       icon: Users,
       colorClass: 'text-primary',
       tintClass: 'bg-primary/10',
+      to: '/students',
     },
     {
       label: 'Classes',
@@ -139,6 +147,7 @@ const DashboardPage: React.FC = () => {
       icon: BookOpen,
       colorClass: 'text-foreground',
       tintClass: 'bg-secondary',
+      to: '/classes',
     },
     {
       label: 'Present Today',
@@ -146,6 +155,7 @@ const DashboardPage: React.FC = () => {
       icon: ClipboardCheck,
       colorClass: 'text-green-600 dark:text-green-400',
       tintClass: 'bg-green-500/10',
+      to: '/history?status=present',
     },
     {
       label: 'Absent Today',
@@ -153,6 +163,7 @@ const DashboardPage: React.FC = () => {
       icon: UserX,
       colorClass: 'text-destructive',
       tintClass: 'bg-destructive/10',
+      to: '/history?status=absent',
     },
   ];
 
@@ -185,7 +196,7 @@ const DashboardPage: React.FC = () => {
       <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
         <motion.div variants={fadeUp}>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="mt-0.5 text-sm text-muted-foreground">
             {new Date().toLocaleDateString('en-IN', {
               weekday: 'long',
               day: 'numeric',
@@ -197,11 +208,11 @@ const DashboardPage: React.FC = () => {
         {attendancePct !== null && (
           <motion.div
             variants={fadeUp}
-            className="relative overflow-hidden rounded-2xl bg-primary/8 border border-primary/20 p-4"
+            className="relative overflow-hidden rounded-2xl border border-primary/20 bg-primary/8 p-4"
           >
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold text-primary/70 uppercase tracking-wider mb-0.5">
+                <p className="mb-0.5 text-xs font-semibold uppercase tracking-wider text-primary/70">
                   Today&apos;s Rate
                 </p>
                 <div className="flex items-baseline gap-2">
@@ -212,8 +223,8 @@ const DashboardPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="relative w-16 h-16 shrink-0">
-                <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
+              <div className="relative h-16 w-16 shrink-0">
+                <svg viewBox="0 0 64 64" className="h-full w-full -rotate-90">
                   <circle
                     cx="32"
                     cy="32"
@@ -241,18 +252,18 @@ const DashboardPage: React.FC = () => {
           </motion.div>
         )}
 
-        <motion.div variants={container} className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <motion.div variants={container} className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {stats.map((stat) => (
             <StatCard key={stat.label} {...stat} />
           ))}
         </motion.div>
 
         <motion.div variants={fadeUp}>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Quick Actions
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {quickActions.map((action) => (
               <motion.div
                 key={action.to}
@@ -262,19 +273,19 @@ const DashboardPage: React.FC = () => {
               >
                 <Link
                   to={action.to}
-                  className="group flex items-center gap-4 rounded-2xl border border-border/60 bg-card p-4 hover:border-primary/40 transition-colors duration-200"
+                  className="group flex items-center gap-4 rounded-2xl border border-border/60 bg-card p-4 transition-colors duration-200 hover:border-primary/40"
                   style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
                 >
-                  <div className="shrink-0 rounded-xl bg-primary/10 p-2.5 group-hover:bg-primary/15 transition-colors">
+                  <div className="shrink-0 rounded-xl bg-primary/10 p-2.5 transition-colors group-hover:bg-primary/15">
                     <action.icon className="h-5 w-5 text-primary" />
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-sm leading-none mb-1">{action.label}</p>
-                    <p className="text-xs text-muted-foreground truncate">{action.desc}</p>
+                    <p className="mb-1 text-sm font-semibold leading-none">{action.label}</p>
+                    <p className="truncate text-xs text-muted-foreground">{action.desc}</p>
                   </div>
 
-                  <ArrowRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all duration-200 shrink-0" />
+                  <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-primary" />
                 </Link>
               </motion.div>
             ))}
