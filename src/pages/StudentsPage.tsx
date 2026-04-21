@@ -39,6 +39,7 @@ import {
   Trash2,
   Phone,
   UserCircle2,
+  Loader2,
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -51,6 +52,7 @@ const StudentsPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [selectedClass, setSelectedClass] = useState(initialClassFromUrl);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [addingStudent, setAddingStudent] = useState(false);
 
   const [form, setForm] = useState({
     full_name: '',
@@ -118,6 +120,8 @@ const StudentsPage: React.FC = () => {
     }
 
     try {
+      setAddingStudent(true);
+
       await addStudent({
         full_name: form.full_name.trim(),
         roll_number: form.roll_number.trim(),
@@ -135,6 +139,8 @@ const StudentsPage: React.FC = () => {
     } catch (err) {
       console.error(err);
       toast.error('Failed to add student');
+    } finally {
+      setAddingStudent(false);
     }
   };
 
@@ -392,8 +398,13 @@ const StudentsPage: React.FC = () => {
                   </div>
                 </div>
 
-                <Button onClick={handleAddStudent} className="w-full rounded-xl">
-                  Save Student
+                <Button
+                  onClick={handleAddStudent}
+                  disabled={addingStudent}
+                  className="w-full rounded-xl"
+                >
+                  {addingStudent && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {addingStudent ? "Saving..." : "Save Student"}
                 </Button>
               </DialogContent>
             </Dialog>

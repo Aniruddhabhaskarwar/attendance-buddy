@@ -21,6 +21,7 @@ import {
   CalendarDays,
   FileText,
   Trash2,
+  PlusCircle,
 } from 'lucide-react';
 
 type StudentType = {
@@ -41,7 +42,8 @@ type FeeType = {
   notes?: string;
 };
 
-const formatCurrency = (value: number) => `₹${Number(value || 0).toLocaleString('en-IN')}`;
+const formatCurrency = (value: number) =>
+  `₹${Number(value || 0).toLocaleString('en-IN')}`;
 
 const formatDate = (date: string) => {
   if (!date) return '--';
@@ -60,22 +62,27 @@ const isOverdue = (dueDate: string, status: string) => {
   return due < today;
 };
 
-const getStatusStyles = (fee: FeeType) => {
+const getStatusStyles = (fee: FeeType | null) => {
+  if (!fee) {
+    return 'bg-muted text-muted-foreground border border-border';
+  }
+
   if (fee.status === 'paid') {
-    return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+    return 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20';
   }
 
   if (isOverdue(fee.due_date, fee.status)) {
-    return 'bg-rose-50 text-rose-600 border border-rose-200';
+    return 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20';
   }
 
   return 'bg-muted text-muted-foreground border border-border';
 };
 
-const getStatusLabel = (fee: FeeType) => {
+const getStatusLabel = (fee: FeeType | null) => {
+  if (!fee) return 'Not Set';
   if (fee.status === 'paid') return 'Paid';
-  if (isOverdue(fee.due_date, fee.status)) return 'Overdue';
-  return 'Pending';
+  if (isOverdue(fee.due_date, fee.status)) return 'Due';
+  return 'Upcoming';
 };
 
 const FeesPage: React.FC = () => {
@@ -89,12 +96,14 @@ const FeesPage: React.FC = () => {
   } = useData();
 
   const [selectedStudent, setSelectedStudent] = useState<StudentType | null>(null);
+  const [selectedFee, setSelectedFee] = useState<FeeType | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<'setFee' | 'addPayment'>('setFee');
   const [search, setSearch] = useState('');
 
   const [form, setForm] = useState({
     total_amount: '',
-    paid_amount: '',
+    payment_amount: '',
     due_date: '',
     notes: '',
   });
@@ -102,62 +111,110 @@ const FeesPage: React.FC = () => {
   const resetForm = () => {
     setForm({
       total_amount: '',
-      paid_amount: '',
+      payment_amount: '',
       due_date: '',
       notes: '',
     });
   };
 
-  const handleAddFee = async () => {
+  const openSetFeeDialog = (student: StudentType) => {
+    setSelectedStudent(student);
+    setSelectedFee(null);
+    setDialogMode('setFee');
+    resetForm();
+    setDialogOpen(true);
+  };
+
+  const openAddPaymentDialog = (student: StudentType, fee: FeeType) => {
+    setSelectedStudent(student);
+    setSelectedFee(fee);
+    setDialogMode('addPayment');
+    setForm({
+      total_amount: '',
+      payment_amount: '',
+      due_date: '',
+      notes: '',
+    });
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
     if (!selectedStudent) return;
 
-    if (!form.total_amount || !form.due_date) {
-      toast.error('Amount and due date are required');
-      return;
-    }
-
     try {
-      const totalAmount = parseFloat(form.total_amount);
-      const paidAmount = parseFloat(form.paid_amount || '0');
+      if (dialogMode === 'setFee') {
+        const existingFees = getFeesByStudent(selectedStudent.id) as FeeType[];
+        const existingFee = existingFees[0] || null;
 
-      await addFee({
-        student_id: selectedStudent.id,
-        total_amount: totalAmount,
-        paid_amount: paidAmount,
-        due_date: form.due_date,
-        status: paidAmount >= totalAmount ? 'paid' : 'unpaid',
-        payment_date: paidAmount >= totalAmount ? new Date().toISOString().split('T')[0] : null,
-        notes: form.notes,
-      });
+        if (existingFee) {
+          toast.error('Fee already exists for this student');
+          return;
+        }
 
-      toast.success('Fee added successfully');
+        if (!form.total_amount || !form.due_date) {
+          toast.error('Total amount and due date are required');
+          return;
+        }
+
+        const totalAmount = parseFloat(form.total_amount);
+
+        await addFee({
+          student_id: selectedStudent.id,
+          total_amount: totalAmount,
+          paid_amount: 0,
+          due_date: form.due_date,
+          status: 'unpaid',
+          payment_date: null,
+          notes: form.notes,
+        });
+
+        toast.success('Fee set successfully');
+      } else {
+        if (!selectedFee) {
+          toast.error('No fee found for this student');
+          return;
+        }
+
+        if (!form.payment_amount) {
+          toast.error('Enter payment amount');
+          return;
+        }
+
+        const paymentAmount = parseFloat(form.payment_amount);
+
+        if (paymentAmount <= 0) {
+          toast.error('Payment amount must be greater than 0');
+          return;
+        }
+
+        const newPaidAmount = Math.min(
+          selectedFee.total_amount,
+          selectedFee.paid_amount + paymentAmount
+        );
+
+        await updateFee(selectedFee.id, {
+          paid_amount: newPaidAmount,
+          status: newPaidAmount >= selectedFee.total_amount ? 'paid' : 'unpaid',
+          payment_date: new Date().toISOString().split('T')[0],
+          notes: form.notes || selectedFee.notes,
+        });
+
+        toast.success('Payment added successfully');
+      }
+
       setDialogOpen(false);
-      resetForm();
       setSelectedStudent(null);
+      setSelectedFee(null);
+      resetForm();
     } catch (err) {
       console.error(err);
-      toast.error('Failed to add fee');
+      toast.error('Failed to save changes');
     }
   };
 
-  const handleMarkPaid = async (fee: FeeType) => {
+  const handleDelete = async (feeId: string) => {
     try {
-      await updateFee(fee.id, {
-        paid_amount: fee.total_amount,
-        status: 'paid',
-        payment_date: new Date().toISOString().split('T')[0],
-      });
-
-      toast.success('Marked as paid');
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to update fee');
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteFee(id);
+      await deleteFee(feeId);
       toast.success('Fee deleted');
     } catch (err) {
       console.error(err);
@@ -166,12 +223,29 @@ const FeesPage: React.FC = () => {
   };
 
   const stats = useMemo(() => {
-    const totalAssigned = fees.reduce((sum: number, fee: FeeType) => sum + Number(fee.total_amount || 0), 0);
-    const totalCollected = fees.reduce((sum: number, fee: FeeType) => sum + Number(fee.paid_amount || 0), 0);
+    const studentFeeRecords = students
+      .map((student) => {
+        const studentFees = getFeesByStudent(student.id) as FeeType[];
+        return studentFees.length > 0 ? studentFees[0] : null;
+      })
+      .filter(Boolean) as FeeType[];
+
+    const totalAssigned = studentFeeRecords.reduce(
+      (sum, fee) => sum + Number(fee.total_amount || 0),
+      0
+    );
+
+    const totalCollected = studentFeeRecords.reduce(
+      (sum, fee) => sum + Number(fee.paid_amount || 0),
+      0
+    );
+
     const totalPending = Math.max(0, totalAssigned - totalCollected);
-    const paidCount = fees.filter((fee: FeeType) => fee.status === 'paid').length;
-    const overdueCount = fees.filter(
-      (fee: FeeType) => fee.status !== 'paid' && isOverdue(fee.due_date, fee.status)
+
+    const paidCount = studentFeeRecords.filter((fee) => fee.status === 'paid').length;
+
+    const overdueCount = studentFeeRecords.filter(
+      (fee) => fee.status !== 'paid' && isOverdue(fee.due_date, fee.status)
     ).length;
 
     return {
@@ -181,7 +255,7 @@ const FeesPage: React.FC = () => {
       paidCount,
       overdueCount,
     };
-  }, [fees]);
+  }, [students, getFeesByStudent]);
 
   const filteredStudents = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -211,7 +285,7 @@ const FeesPage: React.FC = () => {
               <p className="text-sm font-medium text-primary">Finance Dashboard</p>
               <h1 className="mt-1 text-2xl font-bold tracking-tight">Fees Management</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                Track assigned fees, pending collections, and student-wise payment status in one place.
+                Manage one master fee per student and record installment payments cleanly.
               </p>
             </div>
 
@@ -221,7 +295,7 @@ const FeesPage: React.FC = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by student name or roll no"
-                className="pl-9 rounded-xl"
+                className="rounded-xl pl-9"
               />
             </div>
           </div>
@@ -239,9 +313,9 @@ const FeesPage: React.FC = () => {
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">Total Collected</p>
-              <CircleDollarSign className="h-5 w-5 text-muted-foreground" />
+              <IndianRupee className="h-5 w-5 text-muted-foreground" />
             </div>
-            <p className="mt-3 text-2xl font-bold text-green-600">
+            <p className="mt-3 text-2xl font-bold text-green-600 dark:text-green-400">
               {formatCurrency(stats.totalCollected)}
             </p>
           </div>
@@ -251,7 +325,7 @@ const FeesPage: React.FC = () => {
               <p className="text-sm text-muted-foreground">Pending Amount</p>
               <IndianRupee className="h-5 w-5 text-muted-foreground" />
             </div>
-            <p className="mt-3 text-2xl font-bold text-slate-700">
+            <p className="mt-3 text-2xl font-bold text-slate-700 dark:text-slate-200">
               {formatCurrency(stats.totalPending)}
             </p>
           </div>
@@ -261,28 +335,20 @@ const FeesPage: React.FC = () => {
               <p className="text-sm text-muted-foreground">Overdue Records</p>
               <AlertTriangle className="h-5 w-5 text-muted-foreground" />
             </div>
-            <p className="mt-3 text-2xl font-bold text-rose-600">{stats.overdueCount}</p>
+            <p className="mt-3 text-2xl font-bold text-rose-600 dark:text-rose-400">
+              {stats.overdueCount}
+            </p>
           </div>
         </div>
 
         <div className="space-y-4">
           {filteredStudents.map((student: StudentType) => {
             const studentFees = getFeesByStudent(student.id) as FeeType[];
+            const fee = studentFees.length > 0 ? studentFees[0] : null;
 
-            const studentAssigned = studentFees.reduce(
-              (sum, fee) => sum + Number(fee.total_amount || 0),
-              0
-            );
-
-            const studentPaid = studentFees.reduce(
-              (sum, fee) => sum + Number(fee.paid_amount || 0),
-              0
-            );
-
-            const studentPending = Math.max(0, studentAssigned - studentPaid);
-            const studentOverdue = studentFees.filter(
-              (fee) => fee.status !== 'paid' && isOverdue(fee.due_date, fee.status)
-            ).length;
+            const totalAmount = fee ? Number(fee.total_amount || 0) : 0;
+            const paidAmount = fee ? Number(fee.paid_amount || 0) : 0;
+            const dueAmount = Math.max(0, totalAmount - paidAmount);
 
             return (
               <div
@@ -296,147 +362,128 @@ const FeesPage: React.FC = () => {
                       <span className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">
                         Roll #{student.roll_number}
                       </span>
+
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-medium tracking-wide ${getStatusStyles(
+                          fee
+                        )}`}
+                      >
+                        {getStatusLabel(fee)}
+                      </span>
                     </div>
 
                     <div className="mt-3 flex flex-wrap gap-3 text-sm">
                       <span className="rounded-xl border border-border px-3 py-2">
-                        Assigned: <span className="font-semibold">{formatCurrency(studentAssigned)}</span>
+                        Total: <span className="font-semibold">{formatCurrency(totalAmount)}</span>
                       </span>
                       <span className="rounded-xl border border-border px-3 py-2">
-                        Paid: <span className="font-semibold text-green-600">{formatCurrency(studentPaid)}</span>
+                        Paid:{' '}
+                        <span className="font-semibold text-green-600 dark:text-green-400">
+                          {formatCurrency(paidAmount)}
+                        </span>
                       </span>
                       <span className="rounded-xl border border-border px-3 py-2">
-                        Pending: <span className="font-semibold text-slate-700">{formatCurrency(studentPending)}</span>
-                      </span>
-                      <span className="rounded-xl border border-border px-3 py-2">
-                        Overdue: <span className="font-semibold text-rose-700">{studentOverdue}</span>
+                        Remaining:{' '}
+                        <span className="font-semibold text-slate-700 dark:text-slate-200">
+                          {formatCurrency(dueAmount)}
+                        </span>
                       </span>
                     </div>
                   </div>
 
-                  <Button
-                    className="rounded-xl px-4 py-2 
-                    bg-[#C6A85A] text-black 
-                    hover:bg-[#B8963F] 
-                    transition-all duration-200 shadow-sm"
-                    onClick={() => {
-                      setSelectedStudent(student);
-                      setDialogOpen(true);
-                    }}
-                  >
-                    Add Fee
-                  </Button>
+                  {fee ? (
+                    <Button
+                      className="rounded-xl bg-slate-900 text-white transition-all duration-200 hover:bg-slate-800 shadow-sm"
+                      onClick={() => openAddPaymentDialog(student, fee)}
+                    >
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add Payment
+                    </Button>
+                  ) : (
+                    <Button
+                      className="rounded-xl bg-slate-900 text-white transition-all duration-200 hover:bg-slate-800 shadow-sm"
+                      onClick={() => openSetFeeDialog(student)}
+                    >
+                      Set Fee
+                    </Button>
+                  )}
                 </div>
 
-                <div className="mt-4 space-y-3">
-                  {studentFees.length > 0 ? (
-                    studentFees.map((fee) => {
-                      const due = Math.max(0, Number(fee.total_amount || 0) - Number(fee.paid_amount || 0));
-
-                      return (
-                        <div
-                          key={fee.id}
-                          className="rounded-2xl border border-border bg-background/60 p-4"
-                        >
-                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                            <div className="space-y-3">
-                              <div className="flex flex-wrap items-center gap-3">
-                                <div className="flex items-center gap-2 text-base font-semibold">
-                                  <IndianRupee className="h-4 w-4" />
-                                  <span>{Number(fee.total_amount || 0).toLocaleString('en-IN')}</span>
-                                </div>
-
-                                <span
-                                  className={`rounded-full border px-3 py-1 text-xs font-medium ${getStatusStyles(
-                                    fee
-                                  )}`}
-                                >
-                                  {getStatusLabel(fee)}
-                                </span>
+                <div className="mt-4">
+                  {fee ? (
+                    <div className="rounded-2xl border border-border bg-background/60 p-4">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            <div className="rounded-xl border border-border bg-card p-3">
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Wallet className="h-3.5 w-3.5" />
+                                Total Fee
                               </div>
-
-                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                                <div className="rounded-xl bg-card p-3 border border-border">
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <Wallet className="h-3.5 w-3.5" />
-                                    Total Amount
-                                  </div>
-                                  <p className="mt-1 text-sm font-semibold">
-                                    {formatCurrency(fee.total_amount)}
-                                  </p>
-                                </div>
-
-                                <div className="rounded-xl bg-card p-3 border border-border">
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <CheckCircle2 className="h-3.5 w-3.5" />
-                                    Paid Amount
-                                  </div>
-                                  <p className="mt-1 text-sm font-semibold text-green-600">
-                                    {formatCurrency(fee.paid_amount)}
-                                  </p>
-                                </div>
-
-                                <div className="rounded-xl bg-card p-3 border border-border">
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <AlertTriangle className="h-3.5 w-3.5" />
-                                    Pending
-                                  </div>
-                                  <p className="mt-1 text-sm font-semibold text-slate-700">
-                                    {formatCurrency(due)}
-                                  </p>
-                                </div>
-
-                                <div className="rounded-xl bg-card p-3 border border-border">
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <CalendarDays className="h-3.5 w-3.5" />
-                                    Due Date
-                                  </div>
-                                  <p className="mt-1 text-sm font-semibold">
-                                    {formatDate(fee.due_date)}
-                                  </p>
-                                </div>
-                              </div>
-
-                              {fee.notes ? (
-                                <div className="rounded-xl border border-dashed border-border bg-card p-3">
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <FileText className="h-3.5 w-3.5" />
-                                    Notes
-                                  </div>
-                                  <p className="mt-1 text-sm">{fee.notes}</p>
-                                </div>
-                              ) : null}
+                              <p className="mt-1 text-sm font-semibold">
+                                {formatCurrency(fee.total_amount)}
+                              </p>
                             </div>
 
-                            <div className="flex flex-wrap gap-2 lg:justify-end">
-                              {fee.status !== 'paid' && (
-                                <Button
-                                  size="sm"
-                                  className="rounded-xl"
-                                  onClick={() => handleMarkPaid(fee)}
-                                >
-                                  Mark Paid
-                                </Button>
-                              )}
+                            <div className="rounded-xl border border-border bg-card p-3">
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Paid Till Date
+                              </div>
+                              <p className="mt-1 text-sm font-semibold text-green-600 dark:text-green-400">
+                                {formatCurrency(fee.paid_amount)}
+                              </p>
+                            </div>
 
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                className="rounded-xl"
-                                onClick={() => handleDelete(fee.id)}
-                              >
-                                <Trash2 className="mr-1 h-4 w-4" />
-                                Delete
-                              </Button>
+                            <div className="rounded-xl border border-border bg-card p-3">
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                Remaining
+                              </div>
+                              <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                {formatCurrency(dueAmount)}
+                              </p>
+                            </div>
+
+                            <div className="rounded-xl border border-border bg-card p-3">
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <CalendarDays className="h-3.5 w-3.5" />
+                                Due Date
+                              </div>
+                              <p className="mt-1 text-sm font-semibold">
+                                {formatDate(fee.due_date)}
+                              </p>
                             </div>
                           </div>
+
+                          {fee.notes ? (
+                            <div className="rounded-xl border border-dashed border-border bg-card p-3">
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <FileText className="h-3.5 w-3.5" />
+                                Notes
+                              </div>
+                              <p className="mt-1 text-sm">{fee.notes}</p>
+                            </div>
+                          ) : null}
                         </div>
-                      );
-                    })
+
+                        <div className="flex flex-wrap gap-2 lg:justify-end">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="rounded-xl"
+                            onClick={() => handleDelete(fee.id)}
+                          >
+                            <Trash2 className="mr-1 h-4 w-4" />
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
                   ) : (
                     <div className="rounded-2xl border border-dashed border-border bg-background/40 p-6 text-center">
                       <p className="text-sm text-muted-foreground">
-                        No fee records found for this student.
+                        No fee has been set for this student yet.
                       </p>
                     </div>
                   )}
@@ -462,6 +509,7 @@ const FeesPage: React.FC = () => {
           setDialogOpen(open);
           if (!open) {
             setSelectedStudent(null);
+            setSelectedFee(null);
             resetForm();
           }
         }}
@@ -469,7 +517,7 @@ const FeesPage: React.FC = () => {
         <DialogContent className="max-w-md rounded-3xl">
           <DialogHeader>
             <DialogTitle className="text-xl">
-              Add Fee
+              {dialogMode === 'setFee' ? 'Set Fee' : 'Add Payment'}
               {selectedStudent ? (
                 <span className="block pt-1 text-sm font-normal text-muted-foreground">
                   {selectedStudent.full_name} • Roll #{selectedStudent.roll_number}
@@ -479,43 +527,77 @@ const FeesPage: React.FC = () => {
           </DialogHeader>
 
           <div className="space-y-4">
-            <div>
-              <Label>Total Amount *</Label>
-              <Input
-                type="number"
-                value={form.total_amount}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, total_amount: e.target.value }))
-                }
-                placeholder="Enter total amount"
-                className="mt-1 rounded-xl"
-              />
-            </div>
+            {dialogMode === 'setFee' ? (
+              <>
+                <div>
+                  <Label>Total Amount *</Label>
+                  <Input
+                    type="number"
+                    value={form.total_amount}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, total_amount: e.target.value }))
+                    }
+                    placeholder="Enter total fee amount"
+                    className="mt-1 rounded-xl"
+                  />
+                </div>
 
-            <div>
-              <Label>Paid Amount</Label>
-              <Input
-                type="number"
-                value={form.paid_amount}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, paid_amount: e.target.value }))
-                }
-                placeholder="Enter amount already paid"
-                className="mt-1 rounded-xl"
-              />
-            </div>
+                <div>
+                  <Label>Due Date *</Label>
+                  <Input
+                    type="date"
+                    value={form.due_date}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, due_date: e.target.value }))
+                    }
+                    className="mt-1 rounded-xl"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <Label>Payment Amount *</Label>
+                  <Input
+                    type="number"
+                    value={form.payment_amount}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, payment_amount: e.target.value }))
+                    }
+                    placeholder="Enter installment amount"
+                    className="mt-1 rounded-xl"
+                  />
+                </div>
 
-            <div>
-              <Label>Due Date *</Label>
-              <Input
-                type="date"
-                value={form.due_date}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, due_date: e.target.value }))
-                }
-                className="mt-1 rounded-xl"
-              />
-            </div>
+                {selectedFee && (
+                  <div className="rounded-xl border border-border bg-muted/40 p-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Total Fee</span>
+                      <span className="font-medium">
+                        {formatCurrency(selectedFee.total_amount)}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-muted-foreground">Already Paid</span>
+                      <span className="font-medium">
+                        {formatCurrency(selectedFee.paid_amount)}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-muted-foreground">Remaining</span>
+                      <span className="font-medium">
+                        {formatCurrency(
+                          Math.max(
+                            0,
+                            Number(selectedFee.total_amount) - Number(selectedFee.paid_amount)
+                          )
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
 
             <div>
               <Label>Notes</Label>
@@ -529,8 +611,8 @@ const FeesPage: React.FC = () => {
               />
             </div>
 
-            <Button onClick={handleAddFee} className="w-full rounded-xl">
-              Save Fee
+            <Button onClick={handleSave} className="w-full rounded-xl">
+              {dialogMode === 'setFee' ? 'Save Fee' : 'Save Payment'}
             </Button>
           </div>
         </DialogContent>

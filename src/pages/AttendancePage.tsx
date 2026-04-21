@@ -13,6 +13,7 @@ import {
 import { toast } from 'sonner';
 import { Check, X, IndianRupee, ClipboardCheck, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useSearchParams } from "react-router-dom";
 
 function getLocalDateString() {
   const now = new Date();
@@ -92,6 +93,15 @@ const AttendancePage: React.FC = () => {
       setSaving(false);
     }
   };
+
+const [searchParams] = useSearchParams();
+const status = searchParams.get("status");
+
+const filteredAttendance = attendance.filter((a) => {
+  if (status === "present") return a.status === "P";
+  if (status === "absent") return a.status === "A";
+  return true;
+});
 
   const handleClassChange = (value: string) => {
     setSelectedClass(value);
