@@ -15,6 +15,8 @@ import HistoryPage from "./pages/HistoryPage";
 import FeesPage from "./pages/FeesPage";
 import ParentViewPage from "./pages/ParentViewPage";
 import NotFound from "./pages/NotFound";
+import SubscriptionPage from "@/pages/SubscriptionPage";
+import PaymentPage from "@/pages/PaymentPage";
 
 const queryClient = new QueryClient();
 
@@ -132,6 +134,24 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <FeesPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/subscription"
+        element={
+          <ProtectedRoute>
+            <SubscriptionPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/payment"
+        element={
+          <ProtectedRoute>
+            <PaymentPage />
           </ProtectedRoute>
         }
       />

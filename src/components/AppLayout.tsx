@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import {
   Users,
   BookOpen,
@@ -26,6 +27,25 @@ const navItems = [
   { to: '/history', label: 'History', icon: History },
 ];
 
+const canUseOrganization = (org: any) => {
+  if (!org) return false;
+  if (org.is_active === false) return false;
+
+  const now = new Date();
+
+  if (org.subscription_status === 'active') {
+    if (!org.subscription_end_date) return true;
+    return new Date(org.subscription_end_date) >= now;
+  }
+
+  if (org.subscription_status === 'trial') {
+    if (!org.trial_end_date) return true;
+    return new Date(org.trial_end_date) >= now;
+  }
+
+  return false;
+};
+
 export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
@@ -34,6 +54,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark');
   const [scrolled, setScrolled] = useState(false);
+  const [checkingSubscription, setCheckingSubscription] = useState(true);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
@@ -50,10 +71,71 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
+  useEffect(() => {
+    const checkSubscription = async () => {
+      try {
+        setCheckingSubscription(true);
+
+        if (!user?.id) {
+          setCheckingSubscription(false);
+          return;
+        }
+
+        if (location.pathname === '/subscription') {
+          setCheckingSubscription(false);
+          return;
+        }
+
+        const { data: orgUser, error: orgUserError } = await supabase
+          .from('organization_users')
+          .select('organization_id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (orgUserError) throw orgUserError;
+
+        const { data: org, error: orgError } = await supabase
+          .from('organizations')
+          .select(
+            `
+            id,
+            is_active,
+            trial_end_date,
+            subscription_status,
+            subscription_end_date
+          `
+          )
+          .eq('id', orgUser.organization_id)
+          .single();
+
+        if (orgError) throw orgError;
+
+        if (!canUseOrganization(org)) {
+          navigate('/subscription', { replace: true });
+          return;
+        }
+      } catch (error) {
+        console.error('Subscription guard error:', error);
+      } finally {
+        setCheckingSubscription(false);
+      }
+    };
+
+    checkSubscription();
+  }, [user?.id, location.pathname, navigate]);
+
   const handleLogout = async () => {
     await logout();
     navigate('/login', { replace: true });
   };
+
+  if (checkingSubscription) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="text-sm text-muted-foreground">Checking subscription...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
